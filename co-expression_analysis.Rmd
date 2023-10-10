@@ -214,6 +214,11 @@ CTF_normalized_asinh_ <-t(CTF_normalized_asinh)
 ```{r}
 # convert matrix to numeric
 CTF_normalized_asinh_[] <- sapply(CTF_normalized_asinh_, as.numeric)
+write.table(CTF_normalized_asinh_,
+            file="/home/yassine/Downloads/CTF_asinh_count_data.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
 
 soft_power <- 17
 temp_cor <- cor
@@ -241,7 +246,18 @@ cor <- temp_cor
 
 ```{r}
 module_eigengenes <- bwnet$MEs
+write.table(module_eigengenes,
+            file="/home/yassine/Downloads/module_eigengenes.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
 
+write.table(traits,
+            file="/home/yassine/Downloads/traits.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+```
 # get number of genes for each module
 table(bwnet$colors)
 ```
