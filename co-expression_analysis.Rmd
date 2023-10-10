@@ -1,0 +1,525 @@
+```{r}
+install.packages("remotes")
+remotes::install_github("kevinblighe/CorLevelPlot")
+```
+
+```{r}
+library(CorLevelPlot)
+library(tidyverse)
+library(edgeR)
+library(WGCNA)
+library(DESeq2)
+library(GEOquery)
+library(tidyverse)
+library(gridExtra)
+```
+
+# Loading the MetaData (data_info)
+
+```{r}
+sample_info <- as.data.frame(read_excel("/home/yassine/Downloads/Repro_omics_sample_information_06_27_2023.xlsx"))
+
+```
+
+```{r}
+data_info <- sample_info[, -4] %>% # Remove the fourth column
+  filter(!is.na(sample_info[[5]])) %>% #Keep rows with non-NA entries in the fifth column (tissu)
+  dplyr::rename(tissu = sample)%>% # Rename the 'sample' column to 'tissu'
+  filter(!is.na(heiferID))%>% #Remove rows with NA entry in the 'heiferID' column
+  mutate(month = as.integer(gsub("-month", "", month)))#Convert character entries in the 'month' column to integers
+
+colnames(data_info)[4] <- "sample"
+data_info$sample_name <- paste0(data_info$heiferID, "_", data_info$tissu) #To avoid having duplicate samples later 
+```
+
+```{r}
+print(data_info)
+```
+
+```{r}
+data_info$sample<- as.factor(data_info$sample)
+data_info$month<- as.factor(data_info$month)
+data_info$tissu<- as.factor(data_info$tissu)
+data_info$heiferID<- as.factor(data_info$heiferID)
+
+```
+
+#Loading the count data 
+```{r}
+files<-list.files("/mnt/storage/lab_folder/repro_omics/counting/", 
+                  recursive=T,
+                  pattern="count", 
+                  full.names = TRUE)
+
+files<-files[grep("summary", files, invert = TRUE)]
+files<-files[grep(".count1", files, invert = TRUE)]
+files<-files[grep(".count2", files, invert = TRUE)]
+files<-files[grep(".sh", files, invert = TRUE)]
+
+count_data<-data.frame(matrix(nrow=27607))
+for (n in 1:132) {
+  count<-read.delim(files[n],
+                    header=TRUE, 
+                    sep= "\t", 
+                    stringsAsFactors = FALSE,
+                    comment.char= "#")
+  
+  count<-count[,c(1,7)]
+  count_data<-cbind(count_data,count)
+}
+rownames(count_data)<-count_data[,2]
+count_data<-count_data[,seq(from = 3, 
+                            to = 265,
+                            by = 2)]
+colnames(count_data)<- substr(colnames(count_data),57, 59)
+```
+
+```{r}
+colnames(count_data)<-data_info$sample_name
+```
+
+# Removing genes that have no reads in any samples -> count_data_a
+
+# Adding the annotation from "taurus_gene_ensembl" to the filtred gene counts  ->  count_data_annotated
+
+# Keep only genes transscripts that are 'protein_coding', 'lncRNA' or 'pseudogene' -b count_data_a
+
+```{r}
+count_data_a<-count_data[rowSums(count_data)>0,] #filtering genes that have no reads 
+
+# Adds the annotation from "taurus_gene_ensembl" to the filtred gene counts  
+count_data_annotated<-merge(count_data_a,
+                            annotation.ensembl.symbol,
+                            by.x="row.names",
+                            by.y="ensembl_gene_id",
+                            all.x=TRUE,
+                            all.y=FALSE)
+```
+
+
+```{r}
+count_data_annotated<-count_data_annotated[count_data_annotated$gene_biotype %in% c('protein_coding', 'lncRNA','pseudogene'),]
+
+count_data_b<-count_data_annotated[,c(2:133)]
+
+rownames(count_data_b)<-count_data_annotated$Row.names
+```
+
+# CTF_normalizing the count data -> CTF_normalized
+```{r}
+lib_size <- base::colSums(count_data_b)
+
+#TMM normalization factors
+norm_factors <- calcNormFactors(object = count_data_b,
+                                  lib.size = lib_size,
+                                  method = "TMM")
+#divide with norm factors here
+CTF_normalized <- sweep(count_data_b, 2, norm_factors, "/")
+
+```
+
+# Transforming the entries of CTF_normalized data-frame with the asinh function
+
+```{r}
+CTF_normalized_asinh <- asinh(CTF_normalized)
+```
+
+#  WGCNA default filter 
+
+```{r}
+gsg <- goodSamplesGenes(t(CTF_normalized_asinh))
+summary(gsg)
+gsg$allOK
+```
+
+```{r}
+table(gsg$goodGenes)
+table(gsg$goodSamples)
+```
+# Outlier detection and removal before co-expression analysis 
+
+# - hierarchical clustering - method 1
+
+```{r}
+htree <- hclust(dist(t(CTF_normalized_asinh)), method = "average")
+plot(htree)
+```
+
+# - PCA  - method 2
+
+```{r}
+pca <- prcomp(t(CTF_normalized_asinh))
+pca.dat <- pca$x
+
+pca.var <- pca$sdev^2
+pca.var.percent <- round(pca.var/sum(pca.var)*100, digits = 2)
+
+pca.dat <- as.data.frame(pca.dat)
+
+ggplot(pca.dat, aes(PC1, PC2)) +
+  geom_point() +
+  geom_text(label = rownames(pca.dat)) +
+  labs(x = paste0('PC1: ', pca.var.percent[1], ' %'),
+       y = paste0('PC2: ', pca.var.percent[2], ' %'))
+```
+
+# Remove the samples detected as outliers
+```{r}
+# exclude outlier samples
+samples.to.be.excluded <- c('H392B_endometrium','J148B_hypothalamus','J133B_hypothalamus','J134B_hypothalamus','H273B_hypothalamus','H378B_hypothalamus')
+CTF_normalized_asinh <- CTF_normalized_asinh[,!(colnames(CTF_normalized_asinh) %in% samples.to.be.excluded)]
+```
+# Network Construction 
+
+# First step : Choose a set of soft-thresholding powers
+```{r}
+power <- c(c(1:10), seq(from = 1, to = 30, by = 1))
+
+# Call the network topology analysis function
+sft <- pickSoftThreshold(t(CTF_normalized_asinh),
+                  powerVector = power,
+                  networkType = "signed",
+                  verbose = 5)
+
+sft.data <- sft$fitIndices
+```
+
+# visualization to pick power
+
+```{r}
+
+a1 <- ggplot(sft.data, aes(Power, SFT.R.sq, label = Power)) +
+  geom_point() +
+  geom_text(nudge_y = 0.1) +
+  geom_hline(yintercept = 0.8, color = 'red') +
+  labs(x = 'Power', y = 'Scale free topology model fit, signed R^2') +
+  theme_classic()
+
+
+a2 <- ggplot(sft.data, aes(Power, mean.k., label = Power)) +
+  geom_point() +
+  geom_text(nudge_y = 0.1) +
+  labs(x = 'Power', y = 'Mean Connectivity') +
+  theme_classic()
+  
+
+grid.arrange(a1, a2, nrow = 2)
+```
+
+```{r}
+CTF_normalized_asinh_ <-t(CTF_normalized_asinh)
+```
+
+
+```{r}
+# convert matrix to numeric
+CTF_normalized_asinh_[] <- sapply(CTF_normalized_asinh_, as.numeric)
+
+soft_power <- 17
+temp_cor <- cor
+cor <- WGCNA::cor
+
+
+# memory estimate w.r.t blocksize
+bwnet <- blockwiseModules(CTF_normalized_asinh_,
+                 maxBlockSize = 22600,
+                 TOMType = "signed",
+                 power = soft_power,
+                 mergeCutHeight = 0.25,
+                 numericLabels = FALSE,
+                 randomSeed = 1234,
+                 verbose = 3,
+                 nThreads = 10)
+```
+
+
+```{r}
+cor <- temp_cor
+```
+
+# Formation of gene modules 
+
+```{r}
+module_eigengenes <- bwnet$MEs
+
+# get number of genes for each module
+table(bwnet$colors)
+```
+
+# Cluster dendogram 
+
+```{r}
+
+# Plot the dendrogram and the module colors before and after merging underneath
+plotDendroAndColors(bwnet$dendrograms[[1]], cbind(bwnet$unmergedColors, bwnet$colors),
+                    c("unmerged", "merged"),
+                    dendroLabels = FALSE,
+                    addGuide = TRUE,
+                    hang= 0.03,
+                    guideHang = 0.05)
+```
+
+# Pairwise pearson correlation matrix 
+
+```{r}
+colData<-data_info
+row.names(colData)<-data_info$sample_name
+# binarize categorical variables
+colData$month <- factor(colData$month, levels = c("6", "9", "19"))
+colData$tissu <- factor(colData$tissu, levels = c("endometrium", "hypothalamus", "pwbc", "pituitary"))
+
+month.out <- binarizeCategoricalColumns(colData$month,
+                           includePairwise = TRUE,
+                           includeLevelVsAll = FALSE,
+                           minCount = 1)
+
+tissu.out <- binarizeCategoricalColumns(colData$tissu,
+                           includePairwise = TRUE,
+                           includeLevelVsAll = FALSE,
+                           minCount = 1)
+
+traits <- cbind(month.out, tissu.out)
+
+# Define numbers of genes and samples
+nsamples <- nrow(CTF_normalized_asinh_)
+ngenes <- ncol(CTF_normalized_asinh_)
+
+
+module.trait.corr <- cor(module_eigengenes,
+                         traits,
+                         use = 'p')
+
+module.trait.corr.pvals <- corPvalueStudent(module.trait.corr,
+                                              nsamples)
+```
+
+
+# Heat map visualisation of the Pearson correlation matrix
+```{r}
+row.names(traits)<-row.names(module_eigengenes)
+
+# visualize module-trait association as a heatmap
+heatmap.data <- merge(module_eigengenes,
+                      traits,
+                      by = 'row.names')
+heatmap.data <- heatmap.data %>% 
+  column_to_rownames(var = 'Row.names')
+```
+
+```{r}
+names(heatmap.data)
+```
+
+
+```{r}
+names(heatmap.data)[20:28]<-c("9.vs.6",
+                                 "19.vs.6"                    
+                                 ,"19.vs.9",
+                                 "hypoth.vs.endomet",
+                                 "pwbc.vs.endomet",
+                                 "pituit.vs.endomet" ,  
+                                 "pwbc.vs.hypoth",
+                                 "pituit.vs.hypoth",
+                                 "pituit.vs.pwbc")
+```
+
+```{r}
+CorLevelPlot(heatmap.data,
+             x = names(heatmap.data)[20:28],
+             y = names(heatmap.data)[1:19],
+             col = c("blue1", "skyblue", "white", "pink", "red"))
+```
+
+# Intramodular analysis: Identification of driver genes 
+```{r}
+heatmap.data
+```
+
+```{r}
+
+# Calculate the module membership and the associated p-values
+
+# The module membership quantifies the similarity of all genes on the array to every module.
+
+module.membership.measure <- cor(module_eigengenes,
+                                   CTF_normalized_asinh_,
+                                   use = 'p')
+module.membership.measure.pvals <- corPvalueStudent(module.membership.measure,
+                                                    nsamples)
+```
+
+
+```{r}
+View(module.membership.measure)
+```
+
+```{r}
+# Calculate the gene significance and associated p-values
+
+hypothalamus.vs.endometrium_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.hypothalamus.vs.endometrium,
+                                    use = 'p')
+pwbc.vs.endometrium_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pwbc.vs.endometrium,
+                                    use = 'p')
+pituitary.vs.endometrium_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pituitary.vs.endometrium,
+                                    use = 'p')
+pwbc.vs.hypothalamus_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pwbc.vs.hypothalamus,
+                                    use = 'p')
+pituitary.vs.hypothalamus_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pituitary.vs.hypothalamus,
+                                    use = 'p')
+pituitary.vs.pwbc_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pituitary.vs.pwbc,
+                                    use = 'p')
+
+hypothalamus.vs.endometrium_gene.signf.pvals <- corPvalueStudent(hypothalamus.vs.endometrium_gene.signf.corr,nsamples)
+
+pwbc.vs.endometrium_gene.signf.pvals <- corPvalueStudent(pwbc.vs.endometrium_gene.signf.corr,nsamples)
+
+pituitary.vs.endometrium_gene.signf.pvals <- corPvalueStudent(pituitary.vs.endometrium_gene.signf.corr,nsamples)
+
+pwbc.vs.hypothalamus_gene.signf.pvals <- corPvalueStudent(pwbc.vs.hypothalamus_gene.signf.corr,nsamples)
+
+pituitary.vs.hypothalamus_gene.signf.pvals <- corPvalueStudent(pituitary.vs.hypothalamus_gene.signf.corr,nsamples)
+
+pituitary.vs.pwbc_gene.signf.pvals <- corPvalueStudent(pituitary.vs.pwbc_gene.signf.corr,nsamples)
+
+```
+```{r}
+n = nrow(hypothalamus.vs.endometrium_gene.signf.pvals)
+alpha = 0.01
+adjusted_p_value = alpha / n 
+
+```
+
+```{r}
+adjusted_p_value
+```
+
+# Signficantly correlated genes hypothalamus.vs.endometrium
+```{r}
+hypothalamus.vs.endometrium_gene.signf.pvals<-data.frame(hypothalamus.vs.endometrium_gene.signf.pvals)
+colnames(hypothalamus.vs.endometrium_gene.signf.pvals)<- c("p_value")
+
+hypothalamus.vs.endometrium_gene.signf.pvals$geneID <- row.names(hypothalamus.vs.endometrium_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than adjusted_p_value
+filtered_hypothalamus.vs.endometrium_gene.signf.pvals <- hypothalamus.vs.endometrium_gene.signf.pvals[hypothalamus.vs.endometrium_gene.signf.pvals$p_value <= adjusted_p_value,]
+filtered_hypothalamus.vs.endometrium_gene.signf.pvals <- na.omit(filtered_hypothalamus.vs.endometrium_gene.signf.pvals)
+# Print the filtered data frame
+print(filtered_hypothalamus.vs.endometrium_gene.signf.pvals)
+
+```
+
+
+# Signficantly correlated genes pwbc.vs.endometrium
+
+
+```{r}
+pwbc.vs.endometrium_gene.signf.pvals<-data.frame(pwbc.vs.endometrium_gene.signf.pvals)
+colnames(pwbc.vs.endometrium_gene.signf.pvals)<- c("p_value")
+
+pwbc.vs.endometrium_gene.signf.pvals$geneID <- row.names(pwbc.vs.endometrium_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than adjusted_p_value
+filtered_pwbc.vs.endometrium_gene.signf.pvals <- pwbc.vs.endometrium_gene.signf.pvals[pwbc.vs.endometrium_gene.signf.pvals$p_value <= adjusted_p_value,]
+pwbc.vs.endometrium_gene.signf.pvals <- na.omit(filtered_pwbc.vs.endometrium_gene.signf.pvals)
+
+# Print the filtered data frame
+print(filtered_pwbc.vs.endometrium_gene.signf.pvals)
+
+```
+# Signficantly correlated genes pituitary.vs.endometrium
+
+```{r}
+
+pituitary.vs.endometrium_gene.signf.pvals<-data.frame(pituitary.vs.endometrium_gene.signf.pvals)
+colnames(pituitary.vs.endometrium_gene.signf.pvals)<- c("p_value")
+
+pituitary.vs.endometrium_gene.signf.pvals$geneID <- row.names(pituitary.vs.endometrium_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than adjusted_p_value
+filtered_pituitary.vs.endometrium_gene.signf.pvals <- pituitary.vs.endometrium_gene.signf.pvals[pituitary.vs.endometrium_gene.signf.pvals$p_value <= adjusted_p_value,]
+pituitary.vs.endometrium_gene.signf.pvals <- na.omit(filtered_pituitary.vs.endometrium_gene.signf.pvals)
+
+# Print the filtered data frame
+print(pituitary.vs.endometrium_gene.signf.pvals)
+```
+
+#  Signficantly correlated genes pwbc.vs.hypothalamus
+```{r}
+pwbc.vs.hypothalamus_gene.signf.pvals<-data.frame(pwbc.vs.hypothalamus_gene.signf.pvals)
+colnames(pwbc.vs.hypothalamus_gene.signf.pvals)<- c("p_value")
+
+pwbc.vs.hypothalamus_gene.signf.pvals$geneID <- row.names(pwbc.vs.hypothalamus_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than 0.01
+filtered_pwbc.vs.hypothalamus_gene.signf.pvals <- pwbc.vs.hypothalamus_gene.signf.pvals[pwbc.vs.hypothalamus_gene.signf.pvals$p_value <= adjusted_p_value,]
+pwbc.vs.hypothalamus_gene.signf.pvals <- na.omit(filtered_pwbc.vs.hypothalamus_gene.signf.pvals)
+
+# Print the filtered data frame
+print(filtered_pwbc.vs.hypothalamus_gene.signf.pvals)
+```
+
+#  Signficantly correlated genes pituitary.vs.hypothalamus
+
+```{r}
+pituitary.vs.hypothalamus_gene.signf.pvals<-data.frame(pituitary.vs.hypothalamus_gene.signf.pvals)
+colnames(pituitary.vs.hypothalamus_gene.signf.pvals)<- c("p_value")
+
+pituitary.vs.hypothalamus_gene.signf.pvals$geneID <- row.names(pituitary.vs.hypothalamus_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than 0.01
+filtered_pituitary.vs.hypothalamus_gene.signf.pvals <- pituitary.vs.hypothalamus_gene.signf.pvals[pituitary.vs.hypothalamus_gene.signf.pvals$p_value <= adjusted_p_value,]
+pituitary.vs.hypothalamus_gene.signf.pvals <- na.omit(filtered_pituitary.vs.hypothalamus_gene.signf.pvals)
+
+# Print the filtered data frame
+print(filtered_pituitary.vs.hypothalamus_gene.signf.pvals)
+```
+
+
+# Signficantly correlated genes pituitary.vs.pwbc : 
+```{r}
+pituitary.vs.pwbc_gene.signf.pvals<-data.frame(pituitary.vs.pwbc_gene.signf.pvals)
+colnames(pituitary.vs.pwbc_gene.signf.pvals)<- c("p_value")
+
+pituitary.vs.pwbc_gene.signf.pvals$geneID <- row.names(pituitary.vs.pwbc_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than 0.01
+filtered_pituitary.vs.pwbc_gene.signf.pvals <- pituitary.vs.pwbc_gene.signf.pvals[pituitary.vs.pwbc_gene.signf.pvals$p_value <= adjusted_p_value,]
+pituitary.vs.pwbc_gene.signf.pvals <- na.omit(filtered_pituitary.vs.pwbc_gene.signf.pvals)
+
+# Print the filtered data frame
+print(filtered_pituitary.vs.pwbc_gene.signf.pvals)
+```
+
+```{r}
+# Combine the geneID columns into a single vector
+all_de.gene_ids <- c(
+  pituitary.vs.hypothalamus_gene.signf.pvals$geneID,
+  pwbc.vs.hypothalamus_gene.signf.pvals$geneID,
+  pituitary.vs.endometrium_gene.signf.pvals$geneID,
+  pwbc.vs.endometrium_gene.signf.pvals$geneID,
+  hypothalamus.vs.endometrium_gene.signf.pvals$geneID,
+  pituitary.vs.pwbc_gene.signf.pvals$geneID
+)
+```
+
+```{r}
+all_de.gene_ids
+```
+
+```{r}
+# Remove duplicates from the geneID vector
+unique_de.gene_ids <- unique(all_de.gene_ids)
+```
+
+```{r}
+measured_genes<-colnames(CTF_normalized_asinh_)
+```
+
+```{r}
+length(unique_de.gene_ids)
