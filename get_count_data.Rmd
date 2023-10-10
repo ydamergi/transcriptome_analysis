@@ -1,0 +1,165 @@
+# Read the count data
+
+```{r}
+files<-list.files("/mnt/storage/lab_folder/repro_omics/counting/", 
+                  recursive=T,
+                  pattern="count", 
+                  full.names = TRUE)
+
+files<-files[grep("summary", files, invert = TRUE)]
+files<-files[grep(".count1", files, invert = TRUE)]
+files<-files[grep(".count2", files, invert = TRUE)]
+files<-files[grep(".sh", files, invert = TRUE)]
+
+#length(files)
+
+```
+```{r}
+count_data<-data.frame(matrix(nrow=27607))
+for (n in 1:132) {
+  count<-read.delim(files[n],
+                    header=TRUE, 
+                    sep= "\t", 
+                    stringsAsFactors = FALSE,
+                    comment.char= "#")
+  
+  count<-count[,c(1,7)]
+  count_data<-cbind(count_data,count)
+}
+rownames(count_data)<-count_data[,2]
+count_data<-count_data[,seq(from = 3, 
+                            to = 265,
+                            by = 2)]
+colnames(count_data)<- substr(colnames(count_data),57, 59)
+```
+
+# Import Sample Information
+
+```{r}
+sample_info <- as.data.frame(read_excel("/home/yassine/Downloads/Repro_omics_sample_information_06_27_2023.xlsx"))
+```
+
+# Wrangling and data exploration
+
+```{r}
+sample_info_ <- sample_info[, -c(4,5)]
+
+sample_info_ <- sample_info_[!is.na(sample_info_$heiferID), ]
+
+sample_info_ <- sample_info_ %>%
+  mutate(month = as.integer(gsub("-month", "", month))) %>%
+  dplyr::rename(tissue = sample)
+
+# creation of the data_info for the co-expression analysis
+
+```{r}
+data_info <- sample_info[, -4] %>% # Remove the fourth column
+  filter(!is.na(sample_info[[5]])) %>% #Keep rows with non-NA entries in the fifth column (tissu)
+  dplyr::rename(tissu = sample)%>% # Rename the 'sample' column to 'tissu'
+  filter(!is.na(heiferID))%>% #Remove rows with NA entry in the 'heiferID' column
+  mutate(month = as.integer(gsub("-month", "", month)))#Convert character entries in the 'month' column to integers
+
+colnames(data_info)[4] <- "sample"
+```
+
+# Summary dataframe for all samples (counts of unique tissues and their names per month)
+
+```{r}
+
+month_tissue_summary_ <- data_info %>%
+  group_by(month) %>%
+  summarise(
+    tissues = paste(unique(tissu), collapse = ", "),
+    distinct_samples = n_distinct(heiferID),
+    Heifer_IDs = paste(unique(heiferID), collapse = ", ")
+  )
+# Print the modified summary dataframe
+print(month_tissue_summary_)
+```
+# remove samples with low reads generated 
+```{r}
+# List of sample IDs to remove
+samples_to_remove <- c(8, 16, 56, 57, 59, 102)
+
+# Remove rows with specified sample IDs
+filtred_data_info <- data_info %>%
+  filter(!(sample %in% samples_to_remove))
+
+```
+```{r}
+# Extract the rows of data_info that have sample column have one of these values
+samples_removed <- data_info[(data_info$sample %in% samples_to_remove), ]
+
+```
+# Summary dataframe of the filtred dataset (counts of unique tissues and their names per month)
+
+```{r}
+# Calculate the distinct samples per category (month and tissu)
+month_tissue_summary_ <- filtred_data_info %>%
+  group_by(month, tissu) %>%
+  summarise(
+    distinct_samples = n_distinct(sample),
+    sample_names = paste(unique(sample), collapse = ", ")
+  )
+
+# Print the modified summary dataframe
+print(month_tissue_summary_)
+
+```
+```{r}
+data_info$sample<- as.factor(data_info$sample)
+data_info$month<- as.factor(data_info$month)
+data_info$tissu<- as.factor(data_info$tissu)
+data_info$heiferID<- as.factor(data_info$heiferID)
+
+colnames(count_data)<-data_info$heiferID
+
+count_data_export<-data.frame(gene_id=rownames(count_data),count_data)
+
+write_delim(count_data_export,
+            file = "/home/yassine/Downloads/unfiltered_count_data.txt", 
+            delim = "\t",
+            quote =  "none")
+
+#system("bzip2 "/home/yassine/Downloads/unfiltered_count_data.txt")
+
+
+write_delim(data_info,
+            file = "/home/yassine/Downloads/unfiltered_data_info.txt",
+            delim = "\t",
+            quote =  "none")
+
+#system("bzip2 "/home/yassine/Downloads/unfiltered_data_info.txt)
+
+```
+# Filter the count data (keep only : protein_coding, lncRNA, pseudogene)
+
+```{r}
+count_data_a<-count_data[rowSums(count_data)>0,] #filtering genes that have no reads 
+
+# Adds the annotation from "btaurus_gene_ensembl" to the filtred gene counts  
+count_data_annotated<-merge(count_data_a,
+                            annotation.ensembl.symbol,
+                            by.x="row.names",
+                            by.y="ensembl_gene_id",
+                            all.x=TRUE,
+                            all.y=FALSE)
+```
+
+
+```{r}
+# Count_data_annotated_length contains the read counts and the transcript_lengths for the genes that generates one of these RNA types 'protein_coding', 'lncRNA','pseudogene' the count_data_annotated data frame.
+count_data_annotated<-count_data_annotated[count_data_annotated$gene_biotype %in% c('protein_coding', 'lncRNA','pseudogene'),]
+count_data_annotated_length<-gene.length[gene.length$ensembl_gene_id %in% count_data_annotated$Row.names, 2]
+count_data_b<-count_data_annotated[,c(2:123)]
+rownames(count_data_b)<-count_data_annotated$Row.names
+```
+
+```{r}
+write_delim(count_data_b,
+            file = "/home/yassine/Downloads/filtered_count_data.txt",
+            delim = "\t",
+            quote =  "none")
+
+#system("bzip2 "/home/yassine/Downloads/filtered_count_data.txt")
+```
