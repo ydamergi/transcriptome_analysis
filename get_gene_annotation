@@ -34,19 +34,20 @@ library("emmeans",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
 library("limma",quietly = TRUE , lib.loc="/usr/lib/R/site-library") 
 library("MultiAssayExperiment",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
 library('MOFA2', lib.loc="/usr/lib/R/site-library")
+library('biomaRt', lib.loc="/usr/lib/R/site-library") # BioMart R package,  provides a convenient interface for accessing and using the Ensembl database.
 ```
 
 #Obtain Ensembl Annotation
 
 
 ```{r}
-library('biomaRt', lib.loc="/usr/lib/R/site-library") # BioMart R package,  provides a convenient interface for accessing and using the Ensembl database.
-```
+#  BioMart object called cow connected to the Ensembl database for bovine genes
 
 #  Retrieves these set of annotation data for all genes. 
+
 #The Ensembl gene ID / the gene name / description of the gene / HGNC gene symbol /  gene biotype #(e.g., protein_coding, non_coding). / length of the transcript in base pairs / name of the #chromosome on which the gene is located  / start position of the gene on the chromosome / end #position of the gene on the chromosome.strand The strand of the chromosome on which the gene is #located (+ or -).
 
-```{r}
+
 cow<-useMart("ensembl", 
              dataset = "btaurus_gene_ensembl",
              host="www.ensembl.org") 
@@ -61,40 +62,33 @@ annotation.ensembl.symbol<-getBM(attributes = c('ensembl_gene_id',
                                                 'end_position','strand'), 
                                  values = "*",
                                  mart = cow)
-```
+
 #  Retrieves the same set of annotation data but only for protein-coding genes. 
 
-```{r}
+
 annotation.ensembl.transcript<-getBM(attributes = c('ensembl_gene_id',
                                                     'gene_biotype',
                                                     'ensembl_transcript_id',
                                                     'transcript_length'), 
                                      values = "*", 
                                      mart = cow)
+
 annotation.ensembl.transcript<-annotation.ensembl.transcript[annotation.ensembl.transcript$gene_biotype =="protein_coding",]
-```
 
-
-```{r}
-# Sort gene ID in descending order by transcript length.
+# Sorts gene ID in descending order by transcript length.
 annotation.ensembl.transcript<-annotation.ensembl.transcript[order(annotation.ensembl.transcript$ensembl_gene_id, -annotation.ensembl.transcript$transcript_length),]
+
 
 # Removes any duplicate gene IDs
 annotation.ensembl.transcript<-annotation.ensembl.transcript[!duplicated(annotation.ensembl.transcript$ensembl_gene_id),]
 
 # Include transcripts that are at least 400 base pairs long.
 annotation.ensembl.transcript<-annotation.ensembl.transcript[annotation.ensembl.transcript$transcript_length > 400,]
-```
-# Remove the geneID that have been filtred out in annotation.ensembl.transcript from annotation.ensembl.symbol
 
-```{r}
 annotation.ensembl.symbol<-annotation.ensembl.symbol[order(annotation.ensembl.symbol$ensembl_gene_id, -annotation.ensembl.symbol$transcript_length),]
 
 annotation.ensembl.symbol<-annotation.ensembl.symbol[!duplicated(annotation.ensembl.symbol$ensembl_gene_id),]
-```
-Obtain Ensembl Annotation and GO
 
-```{r}
 gene.length<-annotation.ensembl.symbol[,c( "ensembl_gene_id", "transcript_length" )]
 
 annotation.GO.biomart<-getBM(attributes = c('ensembl_gene_id',
@@ -105,3 +99,34 @@ annotation.GO.biomart<-getBM(attributes = c('ensembl_gene_id',
                              values = "*",
                              mart = cow)
 ```
+```{r}
+write.table(annotation.ensembl.symbol,
+            file="/home/yassine/Downloads/2023_10_10_btaurus_annotation.ensembl.symbol.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+#system('bzip2 --best "/home/yassine/Downloads/2023_10_10_btaurus_annotation.ensembl.symbol.txt")
+
+write.table(gene.length,
+            file="/home/yassine/Downloads/2023_10_10_btaurus_gene.length.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+
+#system('bzip2 --best "/home/yassine/Downloads/2023_10_10_btaurus_gene.length.txt")
+
+write.table(annotation.GO.biomart,
+            file="/home/yassine/Downloads/2023_10_10_btaurus_annotation.GO.biomart.txt", 
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+
+#system('bzip2 --best "/home/yassine/Downloads/2023_10_10_btaurus_annotation.GO.biomart.txt")
+
+write.table(annotation.ensembl.transcript,
+            file="/home/yassine/Downloads/2023_10_10_btaurus_annotation.ensembl.transcript.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+
+#system('bzip2 --best "/home/yassine/Downloads/2023_10_10_btaurus_annotation.ensembl.transcript.txt")
