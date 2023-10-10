@@ -1,0 +1,184 @@
+# Intramodular analysis: Identification of driver genes 
+
+```{r}
+
+# Calculate the module membership and the associated p-values
+
+# The module membership quantifies the similarity of all genes on the array to every module.
+
+module.membership.measure <- cor(module_eigengenes,
+                                   CTF_normalized_asinh_,
+                                   use = 'p')
+module.membership.measure.pvals <- corPvalueStudent(module.membership.measure,
+                                                    nsamples)
+```
+
+```{r}
+# Calculate the gene significance and associated p-values
+
+hypothalamus.vs.endometrium_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.hypothalamus.vs.endometrium,
+                                    use = 'p')
+pwbc.vs.endometrium_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pwbc.vs.endometrium,
+                                    use = 'p')
+pituitary.vs.endometrium_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pituitary.vs.endometrium,
+                                    use = 'p')
+pwbc.vs.hypothalamus_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pwbc.vs.hypothalamus,
+                                    use = 'p')
+pituitary.vs.hypothalamus_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pituitary.vs.hypothalamus,
+                                    use = 'p')
+pituitary.vs.pwbc_gene.signf.corr <- cor(CTF_normalized_asinh_,
+                                    traits$data.pituitary.vs.pwbc,
+                                    use = 'p')
+
+hypothalamus.vs.endometrium_gene.signf.pvals <- corPvalueStudent(hypothalamus.vs.endometrium_gene.signf.corr,nsamples)
+
+pwbc.vs.endometrium_gene.signf.pvals <- corPvalueStudent(pwbc.vs.endometrium_gene.signf.corr,nsamples)
+
+pituitary.vs.endometrium_gene.signf.pvals <- corPvalueStudent(pituitary.vs.endometrium_gene.signf.corr,nsamples)
+
+pwbc.vs.hypothalamus_gene.signf.pvals <- corPvalueStudent(pwbc.vs.hypothalamus_gene.signf.corr,nsamples)
+
+pituitary.vs.hypothalamus_gene.signf.pvals <- corPvalueStudent(pituitary.vs.hypothalamus_gene.signf.corr,nsamples)
+
+pituitary.vs.pwbc_gene.signf.pvals <- corPvalueStudent(pituitary.vs.pwbc_gene.signf.corr,nsamples)
+
+```
+
+```{r}
+n = nrow(hypothalamus.vs.endometrium_gene.signf.pvals)
+alpha = 0.01
+adjusted_p_value = alpha / n 
+
+```
+
+
+# Signficantly correlated genes hypothalamus.vs.endometrium
+
+```{r}
+hypothalamus.vs.endometrium_gene.signf.pvals<-data.frame(hypothalamus.vs.endometrium_gene.signf.pvals)
+colnames(hypothalamus.vs.endometrium_gene.signf.pvals)<- c("p_value")
+
+hypothalamus.vs.endometrium_gene.signf.pvals$geneID <- row.names(hypothalamus.vs.endometrium_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than adjusted_p_value
+filtered_hypothalamus.vs.endometrium_gene.signf.pvals <- hypothalamus.vs.endometrium_gene.signf.pvals[hypothalamus.vs.endometrium_gene.signf.pvals$p_value <= adjusted_p_value,]
+filtered_hypothalamus.vs.endometrium_gene.signf.pvals <- na.omit(filtered_hypothalamus.vs.endometrium_gene.signf.pvals)
+# Print the filtered data frame
+print(filtered_hypothalamus.vs.endometrium_gene.signf.pvals)
+
+```
+
+
+# Signficantly correlated genes pwbc.vs.endometrium
+
+
+```{r}
+pwbc.vs.endometrium_gene.signf.pvals<-data.frame(pwbc.vs.endometrium_gene.signf.pvals)
+colnames(pwbc.vs.endometrium_gene.signf.pvals)<- c("p_value")
+
+pwbc.vs.endometrium_gene.signf.pvals$geneID <- row.names(pwbc.vs.endometrium_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than adjusted_p_value
+filtered_pwbc.vs.endometrium_gene.signf.pvals <- pwbc.vs.endometrium_gene.signf.pvals[pwbc.vs.endometrium_gene.signf.pvals$p_value <= adjusted_p_value,]
+pwbc.vs.endometrium_gene.signf.pvals <- na.omit(filtered_pwbc.vs.endometrium_gene.signf.pvals)
+
+# Print the filtered data frame
+print(filtered_pwbc.vs.endometrium_gene.signf.pvals)
+
+```
+# Signficantly correlated genes pituitary.vs.endometrium
+
+```{r}
+
+pituitary.vs.endometrium_gene.signf.pvals<-data.frame(pituitary.vs.endometrium_gene.signf.pvals)
+colnames(pituitary.vs.endometrium_gene.signf.pvals)<- c("p_value")
+
+pituitary.vs.endometrium_gene.signf.pvals$geneID <- row.names(pituitary.vs.endometrium_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than adjusted_p_value
+filtered_pituitary.vs.endometrium_gene.signf.pvals <- pituitary.vs.endometrium_gene.signf.pvals[pituitary.vs.endometrium_gene.signf.pvals$p_value <= adjusted_p_value,]
+pituitary.vs.endometrium_gene.signf.pvals <- na.omit(filtered_pituitary.vs.endometrium_gene.signf.pvals)
+
+# Print the filtered data frame
+print(pituitary.vs.endometrium_gene.signf.pvals)
+```
+
+#  Signficantly correlated genes pwbc.vs.hypothalamus
+```{r}
+pwbc.vs.hypothalamus_gene.signf.pvals<-data.frame(pwbc.vs.hypothalamus_gene.signf.pvals)
+colnames(pwbc.vs.hypothalamus_gene.signf.pvals)<- c("p_value")
+
+pwbc.vs.hypothalamus_gene.signf.pvals$geneID <- row.names(pwbc.vs.hypothalamus_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than 0.01
+filtered_pwbc.vs.hypothalamus_gene.signf.pvals <- pwbc.vs.hypothalamus_gene.signf.pvals[pwbc.vs.hypothalamus_gene.signf.pvals$p_value <= adjusted_p_value,]
+pwbc.vs.hypothalamus_gene.signf.pvals <- na.omit(filtered_pwbc.vs.hypothalamus_gene.signf.pvals)
+
+# Print the filtered data frame
+print(filtered_pwbc.vs.hypothalamus_gene.signf.pvals)
+```
+
+#  Signficantly correlated genes pituitary.vs.hypothalamus
+
+```{r}
+pituitary.vs.hypothalamus_gene.signf.pvals<-data.frame(pituitary.vs.hypothalamus_gene.signf.pvals)
+colnames(pituitary.vs.hypothalamus_gene.signf.pvals)<- c("p_value")
+
+pituitary.vs.hypothalamus_gene.signf.pvals$geneID <- row.names(pituitary.vs.hypothalamus_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than 0.01
+filtered_pituitary.vs.hypothalamus_gene.signf.pvals <- pituitary.vs.hypothalamus_gene.signf.pvals[pituitary.vs.hypothalamus_gene.signf.pvals$p_value <= adjusted_p_value,]
+pituitary.vs.hypothalamus_gene.signf.pvals <- na.omit(filtered_pituitary.vs.hypothalamus_gene.signf.pvals)
+
+# Print the filtered data frame
+print(filtered_pituitary.vs.hypothalamus_gene.signf.pvals)
+```
+
+
+# Signficantly correlated genes pituitary.vs.pwbc : 
+```{r}
+pituitary.vs.pwbc_gene.signf.pvals<-data.frame(pituitary.vs.pwbc_gene.signf.pvals)
+colnames(pituitary.vs.pwbc_gene.signf.pvals)<- c("p_value")
+
+pituitary.vs.pwbc_gene.signf.pvals$geneID <- row.names(pituitary.vs.pwbc_gene.signf.pvals)
+
+# Filter out all geneID that are associated to a p value lower than 0.01
+filtered_pituitary.vs.pwbc_gene.signf.pvals <- pituitary.vs.pwbc_gene.signf.pvals[pituitary.vs.pwbc_gene.signf.pvals$p_value <= adjusted_p_value,]
+pituitary.vs.pwbc_gene.signf.pvals <- na.omit(filtered_pituitary.vs.pwbc_gene.signf.pvals)
+
+# Print the filtered data frame
+print(filtered_pituitary.vs.pwbc_gene.signf.pvals)
+```
+
+```{r}
+# Combine the geneID columns into a single vector
+all_de.gene_ids <- c(
+  pituitary.vs.hypothalamus_gene.signf.pvals$geneID,
+  pwbc.vs.hypothalamus_gene.signf.pvals$geneID,
+  pituitary.vs.endometrium_gene.signf.pvals$geneID,
+  pwbc.vs.endometrium_gene.signf.pvals$geneID,
+  hypothalamus.vs.endometrium_gene.signf.pvals$geneID,
+  pituitary.vs.pwbc_gene.signf.pvals$geneID
+)
+```
+
+```{r}
+all_de.gene_ids
+```
+
+```{r}
+# Remove duplicates from the geneID vector
+unique_de.gene_ids <- unique(all_de.gene_ids)
+```
+
+```{r}
+measured_genes<-colnames(CTF_normalized_asinh_)
+```
+
+```{r}
+length(unique_de.gene_ids)
