@@ -1,0 +1,149 @@
+```{r}
+# For data management
+BiocManager::install("org.Hs.eg.db")
+# For visualisation
+install.packages('pheatmap')
+install.packages("DOSE")
+install.packages("enrichplot")
+install.packages("ggupset")
+
+```
+
+# Length data and category mapping :
+
+```{r}
+annotation.ensembl.symbol<- read.table("/home/yassine/Downloads/2023_10_10_btaurus_annotation.ensembl.symbol.txt",
+                                       header = TRUE,
+                                       sep= "\t")
+
+annotation.ensembl.transcript<-read.table("/home/yassine/Downloads/2023_10_10_btaurus_annotation.ensembl.transcript.txt",
+                                       header = TRUE,
+                                       sep= "\t")
+
+annotation.GO.biomart<- read.table("/home/yassine/Downloads/2023_10_10_btaurus_annotation.GO.biomart.txt", 
+                                   header = TRUE,
+                                   sep= "\t")
+gene.length<-read.table("/home/yassine/Downloads/2023_10_10_btaurus_gene.length.txt", 
+                        header = TRUE,
+                        sep= "\t")
+
+```
+
+
+```{r}
+CTF_asinh_count_data_<-read.table("/home/yassine/Downloads/CTF_asinh_count_data.txt", 
+                        header = TRUE,
+                        sep= "\t")
+measured_genes<-colnames(CTF_asinh_count_data_)
+```
+
+```{r}
+all_genes<-data.frame(gene=measured_genes,
+                      stringsAsFactors=FALSE )
+rownames(all_genes)<-all_genes$gene
+N_expressed_genes<-length(all_genes$gene)
+gene.length_<-gene.length[gene.length$ensembl_gene_id %in% all_genes$gene,]
+annotation.genelength.biomart_vector<-gene.length_$transcript_length
+annotation.genelength.biomart_vector<-data.frame(annotation.genelength.biomart_vector)
+row.names(annotation.genelength.biomart_vector)<-gene.length_$ensembl_gene_id
+```
+
+
+```{r}
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes),]
+
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)] 
+
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes),]
+```
+
+# The different genes to test :  
+# pituitary.vs.hypothalamus_gene.signf.pvals$geneID,
+# pwbc.vs.hypothalamus_gene.signf.pvals$geneID,
+# pituitary.vs.endometrium_gene.signf.pvals$geneID,
+# pwbc.vs.endometrium_gene.signf.pvals$geneID,
+# hypothalamus.vs.endometrium_gene.signf.pvals$geneID,
+# pituitary.vs.pwbc_gene.signf.pvals$geneID
+```{r}
+pituitary.vs.hypothalamus_gene.signf.pvals <-read.table("/home/yassine/Downloads/pituitary.vs.hypothalamus_signf.gene.txt",
+                                                        header = TRUE,
+                                                        sep ="\t" )
+pwbc.vs.hypothalamus_gene.signf.pvals<-read.table("/home/yassine/Downloads/pwbc.vs.hypothalamus_signf.gene.txt",
+                                                        header = TRUE,
+                                                        sep ="\t" )
+pituitary.vs.endometrium_gene.signf.pvals<-read.table("/home/yassine/Downloads/pituitary.vs.endometrium_signf.gene.txt",
+                                                        header = TRUE,
+                                                        sep ="\t" )
+pwbc.vs.endometrium_gene.signf.pvals<-read.table("/home/yassine/Downloads/pwbc.vs.endometrium_signf.gene.txt",
+                                                        header = TRUE,
+                                                        sep ="\t" )
+hypothalamus.vs.endometrium_gene.signf.pvals<-read.table("/home/yassine/Downloads/hypothalamus.vs.endometrium_signf.gene.txt",
+                                                        header = TRUE,
+                                                        sep ="\t" )
+pituitary.vs.pwbc_gene.signf.pvals<-read.table("/home/yassine/Downloads/pituitary.vs.pwbc_signf.gene.txt",
+                                                        header = TRUE,
+                                                        sep ="\t" )
+
+```
+
+
+```{r}
+test.genes<-data.frame(a=pituitary.vs.hypothalamus_gene.signf.pvals$geneID,
+                       stringsAsFactors=FALSE)
+```
+
+
+```{r}
+all_genes_numeric<-as.integer(all_genes$gene %in% test.genes$a)
+all_genes_numeric<-data.frame(all_genes_numeric)
+row.names(all_genes_numeric)<-all_genes$gene
+N_sig_genes<-length(test.genes$a)
+colnames(annotation.genelength.biomart_vector)= "transcript_length"
+```
+
+
+```{r}
+#N_sig_genes
+set.seed(9830)
+pwf<-nullp(DEgenes=all_genes_numeric$all_genes_numeric,
+           bias.data=annotation.genelength.biomart_vector$transcript_length,
+           plot.fit=FALSE )
+```
+
+```{r}
+go_map=getgo(rownames(all_genes),
+             "bosTau4",
+             "ensGene")
+
+```
+
+# Stopped here , couldn't debug the error 
+
+```{r}
+GO_BP_Cats_raw_counts<-goseq(pwf= pwf,
+                             gene2cat= annotation.GO.BP.biomart ,#go_map,
+                             method ="Sampling",
+                             repcnt = 5000,
+                             use_genes_without_cat= FALSE)
+```
+
+
+```{r}
+GO_BP_Cats_raw_counts<-GO_BP_Cats_raw_counts[GO_BP_Cats_raw_counts$numDEInCat>3,]
+GO_BP_Cats_raw_counts$FWER<-p.adjust(GO_BP_Cats_raw_counts$over_represented_pvalue,
+                                     method ="holm")
+
+GO_BP_Cats_raw_counts<-GO_BP_Cats_raw_counts[with(GO_BP_Cats_raw_counts,
+                                                  order(FWER,over_represented_pvalue,
+                                                        -numDEInCat)), ]
+```
+
+```{r}
+#head(GO_BP_Cats_raw_counts, n=20)
+```
+
+```{r}
+GO_BP_Cats_raw_counts$fold_enrichment<-(GO_BP_Cats_raw_counts$numDEInCat/N_sig_genes)/(G O_BP_Cats_raw_counts$numInCat/N_expressed_genes) annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$en sembl_gene_id %in% test.genes$a, ] GO_BP_Cats_raw_counts<-merge(GO_BP_Cats_raw_counts,annotation.GO.BP.biomart_testgenes, b y.x="category", by.y="go_id", all.x=TRUE, all.y=FALSE) GO_BP_Cats_raw_counts<-merge(GO_BP_Cats_raw_counts, annotation.ensembl.symbol, by.x="ens embl_gene_id", by.y="ensembl_gene_id", all=FALSE, all.x=TRUE, all.y=FALSE) GO_BP_Cats_raw_counts<-GO_BP_Cats_raw_counts[with(GO_BP_Cats_raw_counts, order(FWER,ter m)), ]
+    GO_BP_Cats_raw_counts<-GO_BP_Cats_raw_counts[GO_BP_Cats_raw_counts$FWER<0.1,]
