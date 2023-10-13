@@ -1,149 +1,402 @@
+# Load libraries 
+
 ```{r}
-# For data management
-BiocManager::install("org.Hs.eg.db")
-# For visualisation
-install.packages('pheatmap')
-install.packages("DOSE")
-install.packages("enrichplot")
-install.packages("ggupset")
+library('dplyr', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library('ggplot2', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library('edgeR',quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("cowplot", quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("GGally",quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("DESeq2",quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library('readxl',quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("VennDiagram", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ComplexHeatmap",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("flashClust", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('plotly' , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('tidyverse' ,quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library('htmlwidgets' , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('reshape2' ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggpubr" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("car" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library") 
+library("goseq" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("stringr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("data.table",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("tidyr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("dplyr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("ggsignif",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("kableExtra",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("grid",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("gridExtra",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("bigmemory",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("doParallel",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("ggmanh",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("lme4",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("emmeans",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("limma",quietly = TRUE , lib.loc="/usr/lib/R/site-library") 
+library("MultiAssayExperiment",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library('MOFA2', lib.loc="/usr/lib/R/site-library")
+library(clusterProfiler)
+library(enrichplot)
+library(readxl)
+library(ggridges)
+organism = "org.Bt.eg.db"
+library(organism, character.only = TRUE)
+```
+# Load the genes that are signficantly co-expressed with their associated p-value
+
+```{r}
+# paths need to be adapted 
+hypothalamus.vs.endometrium_gene_list<-read_excel("/home/yassine/Downloads/hypothalamus.vs.endometrium.xlsx")
+pituitary.vs.endometrium_gene_list<-read_excel("/home/yassine/Downloads/pituitary.vs.endometrium.xlsx")
+pituitary.vs.hypothalamus_gene_list<-read_excel("/home/yassine/Downloads/pituitary.vs.hypothalamus.xlsx")
+pituitary.vs.pwbc_gene_list<-read_excel("/home/yassine/Downloads/pituitary.vs.pwbc.xlsx")
+pwbc.vs.hypothalamus_gene_list<-read_excel("/home/yassine/Downloads/pwbc.vs.hypothalamus.xlsx")
+pwbc.vs.endometrium_gene_list<-read_excel("/home/yassine/Downloads/pwbc.vs.endometrium.xlsx")
+
+```
+# Wrangling the gene lists to the appropriate clusterProfilier input format
+
+```{r}
+# we want the p values  
+original_gene_list <- hypothalamus.vs.endometrium_gene_list$p_value
+# name the vector
+names(original_gene_list) <- hypothalamus.vs.endometrium_gene_list$geneID
+# omit any NA values 
+hypothalamus.vs.endometrium_list<-na.omit(original_gene_list)
+# sort the list in decreasing order (required for clusterProfiler)
+hypothalamus.vs.endometrium_list = sort(hypothalamus.vs.endometrium_list, 
+                                        decreasing = TRUE)
+
+
+original_gene_list <- pituitary.vs.endometrium_gene_list$p_value
+
+names(original_gene_list) <- pituitary.vs.endometrium_gene_list$geneID
+
+pituitary.vs.endometrium_gene_list<-na.omit(original_gene_list)
+
+pituitary.vs.endometrium_gene_list = sort(pituitary.vs.endometrium_gene_list, 
+                                        decreasing = TRUE)
+
+
+original_gene_list <- pituitary.vs.hypothalamus_gene_list$p_value
+
+names(original_gene_list) <- pituitary.vs.hypothalamus_gene_list$geneID
+
+pituitary.vs.hypothalamus_gene_list<-na.omit(original_gene_list)
+
+pituitary.vs.hypothalamus_gene_list = sort(pituitary.vs.hypothalamus_gene_list, 
+                                        decreasing = TRUE)
+
+
+original_gene_list <- pituitary.vs.pwbc_gene_list$p_value
+
+names(original_gene_list) <- pituitary.vs.pwbc_gene_list$geneID
+
+pituitary.vs.pwbc_gene_list<-na.omit(original_gene_list)
+
+pituitary.vs.pwbc_gene_list = sort(pituitary.vs.pwbc_gene_list, 
+                                        decreasing = TRUE)
+
+original_gene_list <- pwbc.vs.hypothalamus_gene_list$p_value
+
+names(original_gene_list) <- pwbc.vs.hypothalamus_gene_list$geneID
+
+pwbc.vs.hypothalamus_gene_list<-na.omit(original_gene_list)
+
+pwbc.vs.hypothalamus_gene_list = sort(pwbc.vs.hypothalamus_gene_list, 
+                                        decreasing = TRUE)
+
+original_gene_list <- pwbc.vs.endometrium_gene_list$p_value
+
+names(original_gene_list) <- pwbc.vs.endometrium_gene_list$geneID
+
+pwbc.vs.endometrium_gene_list<-na.omit(original_gene_list)
+
+pwbc.vs.endometrium_gene_list = sort(pwbc.vs.endometrium_gene_list, 
+                                        decreasing = TRUE)
+
+
+# inspecting the gene lists 
+
+```{r}
+#print(hypothalamus.vs.endometrium_list)
+
+#print(pituitary.vs.endometrium_gene_list)
+
+#print(pituitary.vs.hypothalamus_gene_list)
+
+#print(pwbc.vs.hypothalamus_gene_list)
+
+#print(pituitary.vs.pwbc_gene_list)
+
+#print(pwbc.vs.endometrium_gene_list)
+```
+# Pperforming the GO using  gseGO() function from clusterProfiler
+
+```{r}
+gse_hypothalamus.vs.endometrium <- gseGO(geneList=hypothalamus.vs.endometrium_list, 
+             ont ="BP", 
+             keyType = "ENSEMBL", 
+             nPerm = 10e6, 
+             minGSSize = 5, 
+             maxGSSize = 1000, 
+             pvalueCutoff = 0.01, 
+             verbose = TRUE, 
+             OrgDb = organism, 
+             pAdjustMethod = "none")
+
+gse_pituitary.vs.endometrium <- gseGO(geneList=pituitary.vs.endometrium_gene_list, 
+             ont ="BP", 
+             keyType = "ENSEMBL", 
+             nPerm = 10e6, 
+             minGSSize = 5, 
+             maxGSSize = 1000, 
+             pvalueCutoff = 0.01, 
+             verbose = TRUE, 
+             OrgDb = organism, 
+             pAdjustMethod = "none")
+
+gse_pituitary.vs.hypothalamus <- gseGO(geneList=pituitary.vs.hypothalamus_gene_list, 
+             ont ="BP", 
+             keyType = "ENSEMBL", 
+             nPerm = 10e6, 
+             minGSSize = 5, 
+             maxGSSize = 1000, 
+             pvalueCutoff = 0.01, 
+             verbose = TRUE, 
+             OrgDb = organism, 
+             pAdjustMethod = "none")
+
+gse_pwbc.vs.hypothalamus <- gseGO(geneList=pwbc.vs.hypothalamus_gene_list, 
+             ont ="BP", 
+             keyType = "ENSEMBL", 
+             nPerm = 10e6, 
+             minGSSize = 5, 
+             maxGSSize = 1000, 
+             pvalueCutoff = 0.01, 
+             verbose = TRUE, 
+             OrgDb = organism, 
+             pAdjustMethod = "none")
+
+
+gse_pituitary.vs.pwbc <- gseGO(geneList=pituitary.vs.pwbc_gene_list, 
+             ont ="BP", 
+             keyType = "ENSEMBL", 
+             nPerm = 10e6, 
+             minGSSize = 5, 
+             maxGSSize = 1000, 
+             pvalueCutoff = 0.01, 
+             verbose = TRUE, 
+             OrgDb = organism, 
+             pAdjustMethod = "none")
+
+gse_pwbc.vs.endometrium <- gseGO(geneList=pwbc.vs.endometrium_gene_list, 
+             ont ="BP", 
+             keyType = "ENSEMBL", 
+             nPerm = 10e6, 
+             minGSSize = 5, 
+             maxGSSize = 1000, 
+             pvalueCutoff = 0.01, 
+             verbose = TRUE, 
+             OrgDb = organism, 
+             pAdjustMethod = "none")
+```
+
+# Visualising the GO results 
+
+# 1.dotplot
+
+```{r}
+require(DOSE)
+
+dotplot_hypothalamus.vs.endometrium<-dotplot(gse_hypothalamus.vs.endometrium,
+                                             showCategory=10,
+                                             split=".sign") + 
+  facet_grid(.~.sign)+ 
+  labs(title = "Enriched BPs between hypothalamus and endometrium tissues ",
+       subtitle = "activated = co-expressed by both tissues , suppressed = opposite expression pattern in both tissues ")
+```
+
+```{r}
+ggsave(filename = "/home/yassine/Downloads/Figures/dotplot_hypothalamus.vs.endometrium.png", # path need to be adapted
+       plot = dotplot_hypothalamus.vs.endometrium, 
+       width = 10, 
+       height = 10)
 
 ```
 
-# Length data and category mapping :
+```{r}
+dotplot_pwbc.vs.endometrium<-dotplot(gse_pwbc.vs.endometrium,
+                                     showCategory=10,
+                                     split=".sign") + 
+  facet_grid(.~.sign)+ 
+  labs(title = "Enriched BPs between pwbc and endometrium tissues ",
+       subtitle = "activated = co-expressed by both tissues , suppressed = opposite expression pattern in both tissues ")
+```
 
 ```{r}
-annotation.ensembl.symbol<- read.table("/home/yassine/Downloads/2023_10_10_btaurus_annotation.ensembl.symbol.txt",
-                                       header = TRUE,
-                                       sep= "\t")
+ggsave(filename = "/home/yassine/Downloads/Figures/dotplot_pwbc.vs.endometrium.png", # path need to be adapted
+       plot = dotplot_pwbc.vs.endometrium, 
+       width = 10, 
+       height = 10)
+```
 
-annotation.ensembl.transcript<-read.table("/home/yassine/Downloads/2023_10_10_btaurus_annotation.ensembl.transcript.txt",
-                                       header = TRUE,
-                                       sep= "\t")
+```{r}
 
-annotation.GO.biomart<- read.table("/home/yassine/Downloads/2023_10_10_btaurus_annotation.GO.biomart.txt", 
-                                   header = TRUE,
-                                   sep= "\t")
-gene.length<-read.table("/home/yassine/Downloads/2023_10_10_btaurus_gene.length.txt", 
-                        header = TRUE,
-                        sep= "\t")
+dotplot_pituitary.vs.endometrium<-dotplot(gse_pituitary.vs.endometrium,
+        showCategory=10,
+        split=".sign") + 
+  facet_grid(.~.sign)+ 
+  labs(title = "Enriched BPs between pituitary and endometrium tissues ",
+       subtitle = "activated = co-expressed by both tissues , suppressed = opposite expression pattern in both tissues ")
+```
 
+```{r}
+ggsave(filename = "/home/yassine/Downloads/Figures/dotplot_pituitary.vs.endometrium.png", # path need to be adapted
+       plot = dotplot_pituitary.vs.endometrium, 
+       width = 10, 
+       height = 10)
+```
+
+```{r}
+dotplot_pituitary.vs.hypothalamus <-dotplot(gse_pituitary.vs.hypothalamus,
+        showCategory=10,
+        split=".sign") + 
+  facet_grid(.~.sign)+ 
+  labs(title = "Enriched BPs between pituitary and hypothalamus tissues ",
+       subtitle = "activated = co-expressed by both tissues , suppressed = opposite expression pattern in both tissues ")
+```
+
+```{r}
+
+ggsave(filename = "/home/yassine/Downloads/Figures/dotplot_pituitary.vs.hypothalamus.png", # path need to be adapted
+       plot = dotplot_pituitary.vs.hypothalamus, 
+       width = 10, 
+       height = 10)
+```
+
+```{r}
+dotplot_pwbc.vs.hypothalamus<-dotplot(gse_pwbc.vs.hypothalamus,
+        showCategory=10,
+        split=".sign") + 
+  facet_grid(.~.sign)+
+  labs(title = "Enriched BPs between pwbc and hypothalamus tissues ",
+       subtitle = "activated = co-expressed by both tissues , suppressed = opposite expression pattern in both tissues ")
+
+```
+
+```{r}
+ggsave(filename = "/home/yassine/Downloads/Figures/dotplot_pwbc.vs.hypothalamus.png", # path need to be adapted
+       plot = dotplot_pwbc.vs.hypothalamus, 
+       width = 10, 
+       height = 10)
+```
+
+```{r}
+dotplot_pituitary.vs.pwbc<-dotplot(gse_pituitary.vs.pwbc,
+        showCategory=10,
+        split=".sign") + 
+  facet_grid(.~.sign)+ 
+  labs(title = "Enriched BPs between pituitary and pwbc tissues ",
+       subtitle = "activated = co-expressed by both tissues , suppressed = opposite expression pattern in both tissues ")
+
+```
+
+```{r}
+ggsave(filename = "/home/yassine/Downloads/Figures/dotplot_pituitary.vs.pwbc.png", # path need to be adapted
+       plot = dotplot_pituitary.vs.pwbc, 
+       width = 10, 
+       height = 10)
+```
+
+# 2.Category Netplot
+
+```{r}
+cnetplot_hypothalamus.vs.endometrium<-cnetplot(gse_hypothalamus.vs.endometrium, 
+         categorySize="pvalue",
+         p=hypothalamus.vs.endometrium_list, 
+         showCategory = 10,
+         layout = "kk")
+
+```
+
+```{r}
+ggsave(filename = "/home/yassine/Downloads/Figures/cnetplot_hypothalamus.vs.endometrium.png", # path need to be adapted
+       plot = cnetplot_hypothalamus.vs.endometrium, 
+       width = 10, 
+       height = 10)
+```
+
+```{r}
+cnetplot_pituitary.vs.endometrium<-cnetplot(gse_pituitary.vs.endometrium, 
+         categorySize="pvalue",
+         p=pituitary.vs.endometrium_list, 
+         showCategory = 10,
+         layout = "kk")
+```
+
+```{r}
+ggsave(filename = "/home/yassine/Downloads/Figures/cnetplot_pituitary.vs.endometrium.png", # path need to be adapted
+       plot = cnetplot_pituitary.vs.endometrium, 
+       width = 10, 
+       height = 10)
+```
+```{r}
+cnetplot_pituitary.vs.hypothalamus<-cnetplot(gse_pituitary.vs.hypothalamus, 
+         categorySize="pvalue",
+         p=pituitary.vs.hypothalamus_list, 
+         showCategory = 10,
+         layout = "kk")
+```
+
+```{r}
+
+ggsave(filename = "/home/yassine/Downloads/Figures/cnetplot_pituitary.vs.hypothalamus.png", # path need to be adapted
+       plot = cnetplot_pituitary.vs.hypothalamus, 
+       width = 10, 
+       height = 10)
+```
+
+```{r}
+cnetplot_pituitary.vs.pwbc<-cnetplot(gse_pituitary.vs.pwbc, 
+         categorySize="pvalue",
+         p=pituitary.vs.pwbc_list, 
+         showCategory = 10,
+         layout = "kk")
+```
+```{r}
+ggsave(filename = "/home/yassine/Downloads/Figures/cnetplot_pituitary.vs.pwbc.png", # path need to be adapted
+       plot = cnetplot_pituitary.vs.pwbc, 
+       width = 10, 
+       height = 10)
+```
+
+```{r}
+cnetplot_pwbc.vs.endometrium<-cnetplot(gse_pwbc.vs.endometrium, 
+         categorySize="pvalue",
+         p=pwbc.vs.endometrium_list, 
+         showCategory = 10,
+         layout = "kk")
+```
+
+```{r}
+ggsave(filename = "/home/yassine/Downloads/Figures/cnetplot_cnetplot_pwbc.vs.endometrium.png", # path need to be adapted
+       plot = cnetplot_pwbc.vs.endometrium, 
+       width = 10, 
+       height = 10)
+```
+
+```{r}
+cnetplot_pwbc.vs.hypothalamus<-cnetplot(gse_pwbc.vs.hypothalamus, 
+         categorySize="pvalue",
+         p=pwbc.vs.hypothalamus_list, 
+         showCategory = 10,
+         layout = "kk")
 ```
 
 
 ```{r}
-CTF_asinh_count_data_<-read.table("/home/yassine/Downloads/CTF_asinh_count_data.txt", 
-                        header = TRUE,
-                        sep= "\t")
-measured_genes<-colnames(CTF_asinh_count_data_)
+ggsave(filename = "/home/yassine/Downloads/Figures/cnetplot_pwbc.vs.hypothalamus.png", # path need to be adapted
+       plot = cnetplot_pwbc.vs.hypothalamus, 
+       width = 10, 
+       height = 10)
 ```
-
-```{r}
-all_genes<-data.frame(gene=measured_genes,
-                      stringsAsFactors=FALSE )
-rownames(all_genes)<-all_genes$gene
-N_expressed_genes<-length(all_genes$gene)
-gene.length_<-gene.length[gene.length$ensembl_gene_id %in% all_genes$gene,]
-annotation.genelength.biomart_vector<-gene.length_$transcript_length
-annotation.genelength.biomart_vector<-data.frame(annotation.genelength.biomart_vector)
-row.names(annotation.genelength.biomart_vector)<-gene.length_$ensembl_gene_id
-```
-
-
-```{r}
-annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
-
-annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes),]
-
-annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)] 
-
-annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes),]
-```
-
-# The different genes to test :  
-# pituitary.vs.hypothalamus_gene.signf.pvals$geneID,
-# pwbc.vs.hypothalamus_gene.signf.pvals$geneID,
-# pituitary.vs.endometrium_gene.signf.pvals$geneID,
-# pwbc.vs.endometrium_gene.signf.pvals$geneID,
-# hypothalamus.vs.endometrium_gene.signf.pvals$geneID,
-# pituitary.vs.pwbc_gene.signf.pvals$geneID
-```{r}
-pituitary.vs.hypothalamus_gene.signf.pvals <-read.table("/home/yassine/Downloads/pituitary.vs.hypothalamus_signf.gene.txt",
-                                                        header = TRUE,
-                                                        sep ="\t" )
-pwbc.vs.hypothalamus_gene.signf.pvals<-read.table("/home/yassine/Downloads/pwbc.vs.hypothalamus_signf.gene.txt",
-                                                        header = TRUE,
-                                                        sep ="\t" )
-pituitary.vs.endometrium_gene.signf.pvals<-read.table("/home/yassine/Downloads/pituitary.vs.endometrium_signf.gene.txt",
-                                                        header = TRUE,
-                                                        sep ="\t" )
-pwbc.vs.endometrium_gene.signf.pvals<-read.table("/home/yassine/Downloads/pwbc.vs.endometrium_signf.gene.txt",
-                                                        header = TRUE,
-                                                        sep ="\t" )
-hypothalamus.vs.endometrium_gene.signf.pvals<-read.table("/home/yassine/Downloads/hypothalamus.vs.endometrium_signf.gene.txt",
-                                                        header = TRUE,
-                                                        sep ="\t" )
-pituitary.vs.pwbc_gene.signf.pvals<-read.table("/home/yassine/Downloads/pituitary.vs.pwbc_signf.gene.txt",
-                                                        header = TRUE,
-                                                        sep ="\t" )
-
-```
-
-
-```{r}
-test.genes<-data.frame(a=pituitary.vs.hypothalamus_gene.signf.pvals$geneID,
-                       stringsAsFactors=FALSE)
-```
-
-
-```{r}
-all_genes_numeric<-as.integer(all_genes$gene %in% test.genes$a)
-all_genes_numeric<-data.frame(all_genes_numeric)
-row.names(all_genes_numeric)<-all_genes$gene
-N_sig_genes<-length(test.genes$a)
-colnames(annotation.genelength.biomart_vector)= "transcript_length"
-```
-
-
-```{r}
-#N_sig_genes
-set.seed(9830)
-pwf<-nullp(DEgenes=all_genes_numeric$all_genes_numeric,
-           bias.data=annotation.genelength.biomart_vector$transcript_length,
-           plot.fit=FALSE )
-```
-
-```{r}
-go_map=getgo(rownames(all_genes),
-             "bosTau4",
-             "ensGene")
-
-```
-
-# Stopped here , couldn't debug the error 
-
-```{r}
-GO_BP_Cats_raw_counts<-goseq(pwf= pwf,
-                             gene2cat= annotation.GO.BP.biomart ,#go_map,
-                             method ="Sampling",
-                             repcnt = 5000,
-                             use_genes_without_cat= FALSE)
-```
-
-
-```{r}
-GO_BP_Cats_raw_counts<-GO_BP_Cats_raw_counts[GO_BP_Cats_raw_counts$numDEInCat>3,]
-GO_BP_Cats_raw_counts$FWER<-p.adjust(GO_BP_Cats_raw_counts$over_represented_pvalue,
-                                     method ="holm")
-
-GO_BP_Cats_raw_counts<-GO_BP_Cats_raw_counts[with(GO_BP_Cats_raw_counts,
-                                                  order(FWER,over_represented_pvalue,
-                                                        -numDEInCat)), ]
-```
-
-```{r}
-#head(GO_BP_Cats_raw_counts, n=20)
-```
-
-```{r}
-GO_BP_Cats_raw_counts$fold_enrichment<-(GO_BP_Cats_raw_counts$numDEInCat/N_sig_genes)/(G O_BP_Cats_raw_counts$numInCat/N_expressed_genes) annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$en sembl_gene_id %in% test.genes$a, ] GO_BP_Cats_raw_counts<-merge(GO_BP_Cats_raw_counts,annotation.GO.BP.biomart_testgenes, b y.x="category", by.y="go_id", all.x=TRUE, all.y=FALSE) GO_BP_Cats_raw_counts<-merge(GO_BP_Cats_raw_counts, annotation.ensembl.symbol, by.x="ens embl_gene_id", by.y="ensembl_gene_id", all=FALSE, all.x=TRUE, all.y=FALSE) GO_BP_Cats_raw_counts<-GO_BP_Cats_raw_counts[with(GO_BP_Cats_raw_counts, order(FWER,ter m)), ]
-    GO_BP_Cats_raw_counts<-GO_BP_Cats_raw_counts[GO_BP_Cats_raw_counts$FWER<0.1,]
