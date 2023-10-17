@@ -5,15 +5,15 @@ Pipeline for the analysis of transcriptomic data in the context of a Spatio-temp
 
 ### get_count_data: <br>
 Reads and prepares count data for a weighted gene co-expression network analysis.
-Performs the following steps:
-Read the count data. 
-Filter the count data: removes genes with low expression levels and samples with low reads generated.
-Merge the count data with sample information. 
-Extract the genes of interest: protein-coding genes, lncRNAs, and pseudogenes.
+Performs the following steps:<br>
+Read the count data. <br>
+Filter the count data: removes genes with low expression levels and samples with low reads generated.<br>
+Merge the count data with sample information. <br>
+Extract the genes of interest: protein-coding genes, lncRNAs, and pseudogenes.<br>
 Write the filtered count data to a file.<br>
 
 ### co_expression_analysis : <br>
-Performs a weighted gene co-expression network analysis using the [WGCNA R package]([https://gaganpreetkaurkalsi.netlify.app/](https://cran.r-project.org/web/packages/WGCNA/index.html)) . Allows to identify groups of genes that are co-expressed, (correlated expression levels). These groups of genes are called modules, they are likely to be involved in the same biological processes.
+Performs a weighted gene co-expression network analysis using the [WGCNA R package]([(https://cran.r-project.org/web/packages/WGCNA/index.html))] . Allows to identify groups of genes that are co-expressed, (correlated expression levels). These groups of genes are called modules, they are likely to be involved in the same biological processes.
 Performs the following steps:<br>
 Filter and normalize the count data. <br>
 Construct the co-expression network.<br>
