@@ -12,6 +12,14 @@ Pipeline for the analysis of transcriptomic data in the context of a Spatio-temp
 6. Extract the genes of interest: protein-coding genes, lncRNAs, and pseudogenes.<br>
 7. Write the filtered count data to a file.<br>
 
+### get_gene_annotation: <br>
+Connects to the Ensembl [BioMart](https://bioconductor.org/packages/release/bioc/html/biomaRt.html) database for bovine genes.
+1. Retrieves the desired annotation data. The annotation data includes the Ensembl gene ID, gene name, description, HGNC gene symbol, gene biotype, transcript length, chromosome name, start position, end position, and strand.
+2. Sorts the gene IDs by transcript length in descending order.
+3. Removes any duplicate gene IDs.
+4. Includes only transcripts that are at least 400 base pairs long. 
+5. Writes the annotation data to files. 
+
 ### co_expression_analysis : <br>
 Performs a weighted gene co-expression network analysis using the [WGCNA R package](https://cran.r-project.org/web/packages/WGCNA/index.html). Allows to identify groups of genes that are co-expressed, (correlated expression levels). These groups of genes are called modules, they are likely to be involved in the same biological processes.<br>
 Performs the following steps:<br>
