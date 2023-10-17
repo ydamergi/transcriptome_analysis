@@ -13,7 +13,7 @@ Extract the genes of interest: protein-coding genes, lncRNAs, and pseudogenes.<b
 Write the filtered count data to a file.<br>
 
 ### co_expression_analysis : <br>
-Performs a weighted gene co-expression network analysis using the [WGCNA R package]([(https://cran.r-project.org/web/packages/WGCNA/index.html))] . Allows to identify groups of genes that are co-expressed, (correlated expression levels). These groups of genes are called modules, they are likely to be involved in the same biological processes.
+Performs a weighted gene co-expression network analysis using the [WGCNA R package][(https://cran.r-project.org/web/packages/WGCNA/index.html]. Allows to identify groups of genes that are co-expressed, (correlated expression levels). These groups of genes are called modules, they are likely to be involved in the same biological processes.<br>
 Performs the following steps:<br>
 Filter and normalize the count data. <br>
 Construct the co-expression network.<br>
