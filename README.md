@@ -4,20 +4,20 @@ Pipeline for the analysis of transcriptomic data in the context of a Spatio-temp
 
 
 ### get_count_data: <br>
-Reads and prepares count data for a weighted gene co-expression network analysis.
-Performs the following steps:<br>
-Read the count data. <br>
-Filter the count data: removes genes with low expression levels and samples with low reads generated.<br>
-Merge the count data with sample information. <br>
-Extract the genes of interest: protein-coding genes, lncRNAs, and pseudogenes.<br>
-Write the filtered count data to a file.<br>
+1. Reads and prepares count data for a weighted gene co-expression network analysis.
+2. Performs the following steps:<br>
+3. Read the count data. <br>
+4. Filter the count data: removes genes with low expression levels and samples with low reads generated.<br>
+5. Merge the count data with sample information. <br>
+6. Extract the genes of interest: protein-coding genes, lncRNAs, and pseudogenes.<br>
+7. Write the filtered count data to a file.<br>
 
 ### co_expression_analysis : <br>
 Performs a weighted gene co-expression network analysis using the [WGCNA R package](https://cran.r-project.org/web/packages/WGCNA/index.html). Allows to identify groups of genes that are co-expressed, (correlated expression levels). These groups of genes are called modules, they are likely to be involved in the same biological processes.<br>
 Performs the following steps:<br>
-Filter and normalize the count data. <br>
-Construct the co-expression network.<br>
-Identify gene modules. <br>
-Calculate module eigengenes.<br>
-Correlate module eigengenes with traits.<br>
-Identify driver genes.<br>
+1. Filter and normalize the count data. <br>
+2. Construct the co-expression network.<br>
+3. Identify gene modules. <br>
+4. Calculate module eigengenes.<br>
+5. Correlate module eigengenes with traits.<br>
+6. Identify driver genes.<br>
