@@ -1,0 +1,332 @@
+# Load libraries
+```{r}
+library('dplyr', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library('ggplot2', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library('edgeR',quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("cowplot", quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("GGally",quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library('readxl',quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("VennDiagram", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ComplexHeatmap",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("flashClust", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('plotly' , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('tidyverse' ,quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library('htmlwidgets' , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('reshape2' ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggpubr" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("car" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library") 
+library("goseq" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("stringr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("data.table",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("tidyr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("dplyr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("ggsignif",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("kableExtra",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("grid",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("gridExtra",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("bigmemory",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("doParallel",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("ggmanh",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("lme4",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("emmeans",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("limma",quietly = TRUE , lib.loc="/usr/lib/R/site-library") 
+library('MOFA2', lib.loc="/usr/lib/R/site-library")
+library("ggrepel",quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
+library("gplots",quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
+library(doParallel,quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
+library(foreach,quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
+library(pheatmap,quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
+```
+# Load count data 
+```{r}
+filtred_counts <-read.table(file = "/home/yassine/Downloads/CTF_asinh_count_data.txt",
+                            header= TRUE, 
+                            sep= "\t")
+filtred_counts <- t(filtred_counts)
+filtred_counts <- as.data.frame(filtred_counts)
+```
+
+# Wrangle the count data for the between tissue co-expression pair
+```{r}
+# Split the sample IDs into animal IDs and tissues
+sample_ids <- strsplit(colnames(filtred_counts),"_")
+# Extract the animal IDs and tissues
+animal_ids <- vector("character", length = length(sample_ids))
+tissues <- vector("character", length = length(sample_ids))
+for (i in 1:length(sample_ids)) {
+  animal_ids[i] <- sample_ids[[i]][1]
+  tissues[i] <- sample_ids[[i]][2]
+}
+```
+```{r}
+pwbc_columns <- grep("pwbc", colnames(filtred_counts))
+pwbc_filtred_counts <- filtred_counts[, pwbc_columns]
+
+endometrium_columns <- grep("endometrium", colnames(filtred_counts))
+endometrium_filtred_counts <- filtred_counts[, endometrium_columns]
+
+hypothalamus_columns <- grep("hypothalamus", colnames(filtred_counts))
+hypothalamus_filtred_counts <- filtred_counts[, hypothalamus_columns]
+
+pituitary_columns <- grep("pituitary", colnames(filtred_counts))
+pituitary_filtred_counts <- filtred_counts[, pituitary_columns]
+```
+
+```{r}
+## We work with 4 sets:
+nSets = 4;
+## Form multi-set expression data: 
+multiExpr = vector(mode = "list", length = nSets)
+multiExpr[[1]] = list(data = as.data.frame(t(pwbc_filtred_counts)))
+multiExpr[[2]] = list(data = as.data.frame(t(endometrium_filtred_counts)))
+multiExpr[[3]] = list(data = as.data.frame(t(hypothalamus_filtred_counts)))
+multiExpr[[4]] = list(data = as.data.frame(t(pituitary_filtred_counts)))
+```
+
+# Default WGCNA filter
+```{r}
+gsg = goodSamplesGenesMS(multiExpr, verbose = 3);
+gsg$allOK
+
+if (!gsg$allOK)
+{
+  # Print information about the removed genes:
+  if (sum(!gsg$goodGenes) > 0)
+    printFlush(paste("Removing genes:", paste(names(multiExpr[[1]]$data)[!gsg$goodGenes],
+                                              collapse = ", ")))
+  for (set in 1:exprSize$nSets)
+  {
+    if (sum(!gsg$goodSamples[[set]]))
+      printFlush(paste("In set", setLabels[set], "removing samples",
+                       paste(rownames(multiExpr[[set]]$data)[!gsg$goodSamples[[set]]], collapse = ", ")))
+    # Remove the offending genes and samples
+    multiExpr[[set]]$data = multiExpr[[set]]$data[gsg$goodSamples[[set]], gsg$goodGenes];
+  }
+  # Update exprSize
+  exprSize = checkSets(multiExpr)
+}
+```
+
+# Rudimentary data cleaning and outlier removal
+```{r}
+sampleTrees = list()
+for (set in 1:nSets)
+{
+  sampleTrees[[set]] = hclust(dist(multiExpr[[set]]$data),
+                              method = "average")
+}
+par(mfrow=c(2,1))
+par(mar = c(0, 4, 2, 0))
+for (set in 1:nSets)
+  plot(sampleTrees[[set]],
+       main = paste("Sample clustering on all genes in", setLabels[set]),
+       xlab="", 
+       sub="",
+       cex = 0.6)
+```
+# zoom on 
+```{r}
+baseHeight = 105
+cutHeights = c(105, 105*exprSize$nSamples[2]/exprSize$nSamples[1]);
+## Re-plot the dendrograms including the cut lines
+par(mfrow=c(2,1))
+par(mar = c(0, 4, 2, 0))
+
+plot(sampleTrees[[1]],
+     main = paste("Sample clustering on all genes in", setLabels[1]),
+     xlab="",
+     sub="",
+     cex = 0.7);
+abline(h=cutHeights[1], col = "red");
+```
+# Loading the MetaData (data_info)
+```{r}
+sample_info <- as.data.frame(read_excel("/home/yassine/Downloads/Repro_omics_sample_information_06_27_2023.xlsx"))
+
+```
+# Wrangling the metadata
+```{r}
+data_info <- sample_info[, -4] %>% # Remove the fourth column
+  filter(!is.na(sample_info[[5]])) %>% #Keep rows with non-NA entries in the fifth column (tissu)
+  dplyr::rename(tissu = sample)%>% # Rename the 'sample' column to 'tissu'
+  filter(!is.na(heiferID))%>% #Remove rows with NA entry in the 'heiferID' column
+  mutate(month = as.integer(gsub("-month", "", month))) #Convert character entries in the 'month' column to integers
+
+colnames(data_info)[4] <- "sample"
+data_info$sample_name <- paste0(data_info$heiferID, "_", data_info$tissu) #To avoid having duplicate samples later 
+```
+```{r}
+data_info$sample<- as.factor(data_info$sample)
+data_info$month<- as.factor(data_info$month)
+data_info$tissu<- as.factor(data_info$tissu)
+data_info$heiferID<- as.factor(data_info$heiferID)
+```
+
+# Use multiple cores 
+```{r}
+# Number of CPU cores to use
+num_cores <- 4
+# Register parallel cluster
+cl <- makeCluster(num_cores)
+registerDoParallel(cl)
+```
+
+```{r}
+pwbc_endo_corr.pvals <- corAndPvalue(multiExpr[[1]]$data,
+                                     multiExpr[[2]]$data)
+```
+```{r}
+write.table(pwbc_endo_corr.pvals$cor,
+            file="/home/yassine/Downloads/between_tissue/pwbc_endo_corr.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+write.table(pwbc_endo_corr.pvals$p,
+            file="/home/yassine/Downloads/between_tissue/pwbc_endo_pvalue.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_endo_corr.txt' )
+system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_endo_pvalue.txt' )
+
+```
+```{r}
+pwbc_hypo_corr.pvals <- corAndPvalue(multiExpr[[1]]$data,
+                                     multiExpr[[3]]$data)
+```
+```{r}
+write.table(pwbc_hypo_corr.pvals$cor,
+            file="/home/yassine/Downloads/between_tissue/pwbc_hypo_corr.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+write.table(pwbc_hypo_corr.pvals$p,
+            file="/home/yassine/Downloads/between_tissue/pwbc_hypo_pvalue.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_hypo_corr.txt' )
+system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_hypo_pvalue.txt' )
+
+```
+```{r}
+pwbc_pit_corr.pvals <- corAndPvalue(multiExpr[[1]]$data,
+                                    multiExpr[[4]]$data)
+```
+
+```{r}
+write.table(pwbc_pit_corr.pvals$cor,
+            file="/home/yassine/Downloads/between_tissue/pwbc_pit_corr.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+write.table(pwbc_pit_corr.pvals$p,
+            file="/home/yassine/Downloads/between_tissue/pwbc_pit_pvalue.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_pit_corr.txt' )
+system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_pit_pvalue.txt' )
+```
+
+```{r}
+endo_hypo_corr.pvals <- corAndPvalue(multiExpr[[2]]$data,
+                                     multiExpr[[3]]$data)
+```
+
+```{r}
+write.table(endo_hypo_corr.pvals$cor,
+            file="/home/yassine/Downloads/between_tissue/endo_hypo_corr.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+write.table(endo_hypo_corr.pvals$p,
+            file="/home/yassine/Downloads/between_tissue/endo_hypo_pvalue.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+system('bzip2 --best /home/yassine/Downloads/between_tissue/endo_hypo_corr.txt' )
+system('bzip2 --best /home/yassine/Downloads/between_tissue/endo_hypo_pvalue.txt' )
+```
+
+```{r}
+endo_pit_corr.pvals <- corAndPvalue(multiExpr[[2]]$data,
+                                    multiExpr[[4]]$data)
+```
+```{r}
+write.table(endo_pit_corr.pvals$cor,
+            file="/home/yassine/Downloads/between_tissue/endo_pit_corr.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+write.table(endo_pit_corr.pvals$p,
+            file="/home/yassine/Downloads/between_tissue/endo_pit_pvalue.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+system('bzip2 --best /home/yassine/Downloads/between_tissue/endo_pit_corr.txt' )
+system('bzip2 --best /home/yassine/Downloads/between_tissue/endo_pit_pvalue.txt' )
+```
+
+```{r}
+hypo_pit_corr.pvals <- corAndPvalue(multiExpr[[3]]$data,
+                                    multiExpr[[4]]$data)
+```
+
+```{r}
+write.table(hypo_pit_corr.pvals$cor,
+            file="/home/yassine/Downloads/between_tissue/hypo_pitt_corr.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+write.table(hypo_pit_corr.pvals$p,
+            file="/home/yassine/Downloads/between_tissue/hypo_pit_pvalue.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+system('bzip2 --best /home/yassine/Downloads/between_tissue/hypo_pitt_corr.txt' )
+system('bzip2 --best /home/yassine/Downloads/between_tissue/hypo_pit_pvalue.txt' )
+```
+```{r}
+stopCluster(cl)
+```
+
+# Heat map visualisation of the Pearson correlation matrix
+```{r}
+# Number of CPU cores to use
+num_cores <- 6
+# Register parallel cluster
+cl <- makeCluster(num_cores)
+registerDoParallel(cl)
+```
+
+# Create a heatmap 
+
+#____pwbc_endo
+```{r}
+pwbc_endo_correlation_matrix <- pwbc_endo_corr.pvals$cor
+pwbc_endo_heatmap <- CorLevelPlot(pwbc_endo_correlation_matrix,
+                                   x=rownames(pwbc_endo_correlation_matrix),
+                                   y=colnames(pwbc_endo_correlation_matrix),
+                                   col = c("blue1", "skyblue", "white", "pink", "red"))+
+labs(title ="PWBC vs endometrium Correlation Heatmap")
+```
+```{r}
+ggsave(filename = "/home/yassine/Downloads/between_tissue/Figures/pwbc_endo_heatmap.png", 
+       plot = pwbc_endo_heatmap, 
+       width = 10, 
+       height = 10)
+```
+```{r}
+# Perform Bonferroni correction on the p-values
+pwbc_endo_adjusted_p_values <- p.adjust(pwbc_endo_corr.pvals$p, method = "bonferroni")
+# Extract the significantly correlated genes
+pwbc_endo_sign_corr_genes <- which(pwbc_endo_adjusted_p_values < 0.05)
+```
+```{r}
+write.table(pwbc_endo_sign_corr_genes,
+            file="/home/yassine/Downloads/between_tissue/pwbc_endo_sign_corr_genes.txt",
+            sep = "\t",
+            append = FALSE,
+            quote = FALSE)
+```
