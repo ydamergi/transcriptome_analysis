@@ -1,0 +1,604 @@
+
+# Load libraries
+```{r}
+.libPaths("/usr/lib/R/site-library")
+library("edgeR", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DESeq2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DEsingle", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("biomaRt",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("goseq" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("VennDiagram", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggpubr", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("Rtsne", quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("MEGENA",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DGCA", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('dplyr', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("ggplot2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggrepel", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("gridExtra",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("readr" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggfortify" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("cowplot" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("tidyverse", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("WGCNA", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("reshape2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("foreach", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("doParallel", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("bigmemory", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("gtools", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("data.table", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("flashClust", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("dendextend", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('vegan', quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ade4", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("gridGraphics", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("networkD3", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+
+```
+```{r}
+library(readxl, quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+
+```
+
+# Load the annotation 
+
+```{r}
+cow<-useMart("ensembl", 
+             dataset = "btaurus_gene_ensembl",
+             host="www.ensembl.org") 
+
+annotation.ensembl.symbol<-getBM(attributes = c('ensembl_gene_id',
+                                                'external_gene_name',
+                                                'description','hgnc_symbol',
+                                                'gene_biotype',
+                                                'transcript_length',
+                                                'chromosome_name',
+                                                'start_position',
+                                                'end_position','strand'), 
+                                 values = "*",
+                                 mart = cow)
+annotation.ensembl.transcript<-getBM(attributes = c('ensembl_gene_id',
+                                                    'gene_biotype',
+                                                    'ensembl_transcript_id',
+                                                    'transcript_length'), 
+                                     values = "*", 
+                                     mart = cow)
+
+annotation.ensembl.transcript<-annotation.ensembl.transcript[annotation.ensembl.transcript$gene_biotype =="protein_coding",]
+
+# Sorts gene ID in descending order by transcript length.
+annotation.ensembl.transcript<-annotation.ensembl.transcript[order(annotation.ensembl.transcript$ensembl_gene_id, -annotation.ensembl.transcript$transcript_length),]
+
+
+# Removes any duplicate gene IDs
+annotation.ensembl.transcript<-annotation.ensembl.transcript[!duplicated(annotation.ensembl.transcript$ensembl_gene_id),]
+
+# Include transcripts that are at least 400 base pairs long.
+annotation.ensembl.transcript<-annotation.ensembl.transcript[annotation.ensembl.transcript$transcript_length > 400,]
+
+annotation.ensembl.symbol<-annotation.ensembl.symbol[order(annotation.ensembl.symbol$ensembl_gene_id, -annotation.ensembl.symbol$transcript_length),]
+
+annotation.ensembl.symbol<-annotation.ensembl.symbol[!duplicated(annotation.ensembl.symbol$ensembl_gene_id),]
+
+gene.length<-annotation.ensembl.symbol[,c( "ensembl_gene_id", "transcript_length" )]
+
+annotation.GO.biomart<-getBM(attributes = c('ensembl_gene_id',
+                                            'external_gene_name',
+                                            'go_id',
+                                            'name_1006',
+                                            'namespace_1003'),
+                             values = "*",
+                             mart = cow)
+```
+
+# Keep only the  reads belonging to the 'protein_coding', 'lncRNA' gene classes 
+```{r}
+annotation.ensembl.symbol<-annotation.ensembl.symbol[annotation.ensembl.symbol$gene_biotype %in% c('protein_coding', 'lncRNA'),]
+```
+
+
+# Load count data information (meta data) 
+
+```{r}
+sample_info <- as.data.frame(read_excel("/home/yassine/Downloads/Repro_omics_sample_information_06_27_2023.xlsx"))
+
+```
+
+```{r}
+data_info <- sample_info[, -4] %>% # Remove the fourth column
+  filter(!is.na(sample_info[[5]])) %>% #Keep rows with non-NA entries in the fifth column (tissu)
+  dplyr::rename(tissu = sample)%>% # Rename the 'sample' column to 'tissu'
+  filter(!is.na(heiferID))%>% #Remove rows with NA entry in the 'heiferID' column
+  mutate(month = as.integer(gsub("-month", "", month)))#Convert character entries in the 'month' column to integers
+
+colnames(data_info)[4] <- "sample"
+data_info$sample_name <- paste0(data_info$heiferID, "_", data_info$tissu) #To avoid having duplicate samples later 
+```
+
+```{r}
+data_info$sample<- as.factor(data_info$sample)
+data_info$month<- as.factor(data_info$month)
+data_info$tissu<- as.factor(data_info$tissu)
+data_info$heiferID<- as.factor(data_info$heiferID)
+```
+
+
+# Load and create tissue specifc read count data 
+
+```{r}
+
+files<-list.files("/mnt/storage/lab_folder/repro_omics/counting/", 
+                  recursive=T,
+                  pattern="count", 
+                  full.names = TRUE)
+
+files<-files[grep("summary", files, invert = TRUE)]
+files<-files[grep(".count1", files, invert = TRUE)]
+files<-files[grep(".count2", files, invert = TRUE)]
+files<-files[grep(".sh", files, invert = TRUE)]
+
+count_data<-data.frame(matrix(nrow=27607))
+for (n in 1:132) {
+  count<-read.delim(files[n],
+                    header=TRUE, 
+                    sep= "\t", 
+                    stringsAsFactors = FALSE,
+                    comment.char= "#")
+  
+  count<-count[,c(1,7)]
+  count_data<-cbind(count_data,count)
+}
+rownames(count_data)<-count_data[,2]
+count_data<-count_data[,seq(from = 3, 
+                            to = 265,
+                            by = 2)]
+colnames(count_data)<- substr(colnames(count_data),57, 59)
+```
+
+```{r}
+colnames(count_data)<-data_info$sample_name
+```
+
+
+```{r}
+# Split the sample IDs into animal IDs and tissues
+sample_ids <- strsplit(colnames(count_data),"_")
+
+# Extract the animal IDs and tissues
+animal_ids <- vector("character", length = length(sample_ids))
+tissues <- vector("character", length = length(sample_ids))
+for (i in 1:length(sample_ids)) {
+  animal_ids[i] <- sample_ids[[i]][1]
+  tissues[i] <- sample_ids[[i]][2]
+}
+```
+
+```{r}
+pwbc_columns <- grep("pwbc", colnames(count_data))
+pwbc_read_counts <- count_data[, pwbc_columns]
+
+endometrium_columns <- grep("endometrium", colnames(count_data))
+endometrium_read_counts <- count_data[, endometrium_columns]
+
+hypothalamus_columns <- grep("hypothalamus", colnames(count_data))
+hypothalamus_read_counts <- count_data[, hypothalamus_columns]
+
+pituitary_columns <- grep("pituitary", colnames(count_data))
+pituitary_read_counts <- count_data[, pituitary_columns]
+```
+
+# Annotated tissue specific count data 
+```{r}
+pwbc_read_counts_annotated <- merge(pwbc_read_counts,
+                                    annotation.ensembl.symbol,
+                                    by.x="row.names",
+                                    by.y="ensembl_gene_id",
+                                    all.x=FALSE,
+                                    all.y=FALSE)
+
+endometrium_read_counts_annotated <- merge(endometrium_read_counts,
+                                           annotation.ensembl.symbol,
+                                           by.x="row.names",
+                                           by.y="ensembl_gene_id",
+                                           all.y=FALSE)
+
+hypothalamus_read_counts_annotated <- merge(hypothalamus_read_counts,
+                                            annotation.ensembl.symbol,
+                                            by.x="row.names",
+                                            by.y="ensembl_gene_id",
+                                            all.y=FALSE)
+
+pituitary_read_counts_annotated <- merge(pituitary_read_counts,
+                                         annotation.ensembl.symbol,
+                                         by.x="row.names",
+                                         by.y="ensembl_gene_id",
+                                         all.y=FALSE)
+
+
+pwbc_gene_length<-pwbc_read_counts_annotated$transcript_length
+endometrium_gene_length<-endometrium_read_counts_annotated$transcript_length
+hypothalamus_gene_length<-hypothalamus_read_counts_annotated$transcript_length
+pituitary_gene_length<-pituitary_read_counts_annotated$transcript_length
+
+
+```
+
+
+```{r}
+pwbc_count_data<-pwbc_read_counts_annotated[,c(2:34)]
+rownames(pwbc_count_data)<-pwbc_read_counts_annotated$Row.names
+
+endometrium_count_data<-endometrium_read_counts_annotated[,c(2:34)]
+rownames(endometrium_count_data)<-endometrium_read_counts_annotated$Row.names
+
+hypothalamus_count_data<-hypothalamus_read_counts_annotated[,c(2:34)]
+rownames(hypothalamus_count_data)<-hypothalamus_read_counts_annotated$Row.names
+
+pituitary_count_data<-pituitary_read_counts_annotated[,c(2:34)]
+rownames(pituitary_count_data)<-pituitary_read_counts_annotated$Row.names
+
+```
+
+```{r}
+
+```
+
+# Filter the count data 
+```{r}
+x <- pwbc_count_data / pwbc_gene_length
+pwbc_tpm <- as.data.frame(t( t(x) * 1e6 / colSums(x) ))
+pwbc_fpkm<-as.data.frame(edgeR::rpkm(pwbc_count_data, pwbc_gene_length))
+pwbc_cpm<-as.data.frame(edgeR::cpm(pwbc_count_data))
+pwbc_cpm_filtered<-pwbc_cpm[rowSums(pwbc_cpm>2) > 8,]
+pwbc_tpm_filtered<-pwbc_fpkm[rowSums(pwbc_tpm>1) > 8,]
+
+genes_expressed_pwbc<-intersect(rownames(pwbc_cpm_filtered), rownames(pwbc_tpm_filtered))
+pwbc_tpm_filtered<-pwbc_tpm_filtered[rownames(pwbc_tpm_filtered) %in% genes_expressed_pwbc,]
+pwbc_cpm_filtered<-pwbc_cpm_filtered[rownames(pwbc_cpm_filtered) %in% genes_expressed_pwbc,]
+pwbc_count_filtered<-pwbc_count_data[rownames(pwbc_count_data) %in% genes_expressed_pwbc,]
+
+pwbc_tpm_filtered<-pwbc_tpm_filtered[complete.cases(pwbc_tpm_filtered),]
+pwbc_count_filtered<-pwbc_count_filtered[complete.cases(pwbc_count_filtered),]
+```
+
+```{r}
+write_delim(pwbc_count_filtered,
+            "/home/yassine/Downloads/between_tissue/pwbc_count_filtered.txt",
+            delim = "\t",
+            quote =  "none")
+```
+
+```{r}
+x <- endometrium_count_data / endometrium_gene_length
+endometrium_tpm <- as.data.frame(t( t(x) * 1e6 / colSums(x) ))
+endometrium_fpkm<-as.data.frame(edgeR::rpkm(endometrium_count_data, endometrium_gene_length))
+endometrium_cpm<-as.data.frame(edgeR::cpm(endometrium_count_data))
+endometrium_cpm_filtered<-endometrium_cpm[rowSums(endometrium_cpm>2) > 8,]
+endometrium_tpm_filtered<-endometrium_fpkm[rowSums(endometrium_tpm>1) > 8,]
+
+genes_expressed_endometrium<-intersect(rownames(endometrium_cpm_filtered), rownames(endometrium_tpm_filtered))
+endometrium_tpm_filtered<-endometrium_tpm_filtered[rownames(endometrium_tpm_filtered) %in% genes_expressed_endometrium,]
+endometrium_cpm_filtered<-endometrium_cpm_filtered[rownames(endometrium_cpm_filtered) %in% genes_expressed_endometrium,]
+endometrium_count_filtered<-endometrium_count_data[rownames(endometrium_count_data) %in% genes_expressed_endometrium,]
+
+endometrium_tpm_filtered<-endometrium_tpm_filtered[complete.cases(endometrium_tpm_filtered),]
+endometrium_count_filtered<-endometrium_count_filtered[complete.cases(endometrium_count_filtered),]
+
+```
+
+```{r}
+write_delim(endometrium_count_filtered,
+            "/home/yassine/Downloads/between_tissue/endometrium_count_filtered.txt",
+            delim = "\t",
+            quote =  "none")
+```
+
+```{r}
+x <- pituitary_count_data / pituitary_gene_length
+pituitary_tpm <- as.data.frame(t( t(x) * 1e6 / colSums(x) ))
+pituitary_fpkm<-as.data.frame(edgeR::rpkm(pituitary_count_data, pituitary_gene_length))
+pituitary_cpm<-as.data.frame(edgeR::cpm(pituitary_count_data))
+pituitary_cpm_filtered<-pituitary_cpm[rowSums(pituitary_cpm>2) > 8,]
+pituitary_tpm_filtered<-pituitary_fpkm[rowSums(pituitary_tpm>1) > 8,]
+
+genes_expressed_pituitary<-intersect(rownames(pituitary_cpm_filtered), rownames(pituitary_tpm_filtered))
+pituitary_tpm_filtered<-pituitary_tpm_filtered[rownames(pituitary_tpm_filtered) %in% genes_expressed_pituitary,]
+pituitary_cpm_filtered<-pituitary_cpm_filtered[rownames(pituitary_cpm_filtered) %in% genes_expressed_pituitary,]
+pituitary_count_filtered<-pituitary_count_data[rownames(pituitary_count_data) %in% genes_expressed_pituitary,]
+
+pituitary_tpm_filtered<-pituitary_tpm_filtered[complete.cases(pituitary_tpm_filtered),]
+pituitary_count_filtered<-pituitary_count_filtered[complete.cases(pituitary_count_filtered),]
+
+```
+
+```{r}
+write_delim(pituitary_count_filtered,
+            "/home/yassine/Downloads/between_tissue/pituitary_count_filtered.txt",
+            delim = "\t",
+            quote =  "none")
+```
+
+
+
+```{r}
+x <- hypothalamus_count_data / hypothalamus_gene_length
+hypothalamus_tpm <- as.data.frame(t( t(x) * 1e6 / colSums(x) ))
+hypothalamus_fpkm<-as.data.frame(edgeR::rpkm(hypothalamus_count_data, hypothalamus_gene_length))
+hypothalamus_cpm<-as.data.frame(edgeR::cpm(hypothalamus_count_data))
+hypothalamus_cpm_filtered<-hypothalamus_cpm[rowSums(hypothalamus_cpm>2) > 8,]
+hypothalamus_tpm_filtered<-hypothalamus_fpkm[rowSums(hypothalamus_tpm>1) > 8,]
+
+genes_expressed_hypothalamus<-intersect(rownames(hypothalamus_cpm_filtered), rownames(hypothalamus_tpm_filtered))
+hypothalamus_tpm_filtered<-hypothalamus_tpm_filtered[rownames(hypothalamus_tpm_filtered) %in% genes_expressed_hypothalamus,]
+hypothalamus_cpm_filtered<-hypothalamus_cpm_filtered[rownames(hypothalamus_cpm_filtered) %in% genes_expressed_hypothalamus,]
+hypothalamus_count_filtered<-hypothalamus_count_data[rownames(hypothalamus_count_data) %in% genes_expressed_hypothalamus,]
+
+hypothalamus_tpm_filtered<-hypothalamus_tpm_filtered[complete.cases(hypothalamus_tpm_filtered),]
+hypothalamus_count_filtered<-hypothalamus_count_filtered[complete.cases(hypothalamus_count_filtered),]
+
+```
+
+```{r}
+write_delim(hypothalamus_count_filtered,
+            "/home/yassine/Downloads/between_tissue/hypothalamus_count_filtered.txt",
+            delim = "\t",
+            quote =  "none")
+```
+
+# Venn diagramd to see the overlapping genes between the filterred tissue specific read counts 
+```{r}
+gene_numbers_venn_diagram<-venn.diagram(list("pwbc"=rownames(pwbc_count_filtered),
+                                             "endometrium"=rownames(endometrium_count_filtered),
+                                             "hypothalamus"=rownames(hypothalamus_count_filtered),
+                                             "pituitary"=rownames(pituitary_count_filtered)),
+                                        cex=1,
+                                        scaled= FALSE, 
+                                        filename = NULL,
+                                        output=TRUE,
+                                        col="transparent",
+                                        fill=c("green", "red","blue","yellow"))
+```
+
+```{r}
+ggdraw(gene_numbers_venn_diagram)
+```
+# In between tissue co-expression analysis 
+
+
+```{r}
+# CTF and asinh transform the filtered  read count data
+lib_size <- base::colSums(pwbc_count_filtered)
+norm_factors <- calcNormFactors(object = pwbc_count_filtered,
+                                lib.size = lib_size,
+                                method = "TMM")
+CTF_normalized_pwbc <- sweep(pwbc_count_filtered,2,norm_factors,"/")
+asinh_transf_CTF_normalized_pwbc<-asinh(CTF_normalized_pwbc)
+
+lib_size <- base::colSums(endometrium_count_filtered)
+norm_factors <- calcNormFactors(object = endometrium_count_filtered,
+                                lib.size = lib_size,
+                                method = "TMM")
+
+CTF_normalized_endometrium <- sweep(endometrium_count_filtered,2,norm_factors,"/")
+asinh_transf_CTF_normalized_endometrium<-asinh(CTF_normalized_endometrium)
+
+lib_size <- base::colSums(hypothalamus_count_filtered)
+norm_factors <- calcNormFactors(object = hypothalamus_count_filtered,
+                                lib.size = lib_size,
+                                method = "TMM")
+CTF_normalized_hypothalamus <- sweep(hypothalamus_count_filtered,2,norm_factors,"/")
+asinh_transf_CTF_normalized_hypothalamus<-asinh(CTF_normalized_hypothalamus)
+
+lib_size <- base::colSums(pituitary_count_filtered)
+norm_factors <- calcNormFactors(object = pituitary_count_filtered,
+                                lib.size = lib_size,
+                                method = "TMM")
+CTF_normalized_pituitary <- sweep(pituitary_count_filtered,2,norm_factors,"/")
+asinh_transf_CTF_normalized_pituitary<-asinh(CTF_normalized_pituitary)
+```
+
+```{r}
+write_delim(asinh_transf_CTF_normalized_pwbc,
+            "/home/yassine/Downloads/between_tissue/pwbc_filtered_transformed.txt",
+            delim = "\t",
+            quote =  "none")
+
+write_delim(asinh_transf_CTF_normalized_endometrium,
+            "/home/yassine/Downloads/between_tissue/endometrium_filtered_transformed.txt",
+            delim = "\t",
+            quote =  "none")
+
+write_delim(asinh_transf_CTF_normalized_hypothalamus,
+            "/home/yassine/Downloads/between_tissue/hypothalamus_filtered_transformed.txt",
+            delim = "\t",
+            quote =  "none")
+
+write_delim(asinh_transf_CTF_normalized_pituitary,
+            "/home/yassine/Downloads/between_tissue/pituitary_filtered_transformed.txt",
+            delim = "\t",
+            quote =  "none")
+```
+
+# Use multiple cores 
+
+
+
+```{r}
+sample_a<-data.frame()
+random_a<-data.frame()
+random_b<-data.frame(matrix(NA, nrow = 173854096, ncol = 1))
+for (i in (1:5)){
+
+randomization<-sample(1:33,replace=F)
+
+random_a<-WGCNA::cor(t(asinh_transf_CTF_normalized_pwbc), 
+                     t(asinh_transf_CTF_normalized_endometrium[,randomization]),
+                     use = "pairwise.complete.obs",
+                     method="pearson")
+random_a<-reshape2::melt(random_a) 
+random_b<-cbind(random_b,random_a$value)
+
+sample_a<-rbind(sample_a,randomization)
+}
+
+random_b<-random_b[,-1]
+
+summary(random_b)
+
+plot_null_distribution_pwbc_endo<-ggplot()+
+geom_histogram(aes(x=random_b[,1]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,2]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,3]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,4]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,5]), data=random_b, binwidth=0.01, alpha=0.2)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+title = "pwbc vs endometrium null distribution",
+panel.background = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_blank(),
+axis.line = element_line(color="black"),
+axis.text = element_text(color="black", size=10),
+axis.title.y=element_text(color="black", size=10,hjust=0),
+axis.title.x = element_text(color="black", size=10)
+)
+```
+
+```{r}
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pwb_endometrium_null_distribution.png",
+       plot = plot_null_distribution_pwbc_endo, 
+       width = 10, 
+       height = 10)
+```
+
+
+
+```{r}
+# Number of CPU cores to use
+num_cores <- 4
+# Register parallel cluster
+cl <- makeCluster(num_cores)
+registerDoParallel(cl)
+```
+
+
+```{r}
+cor_pwbc_endometrium <- corAndPvalue(t(asinh_transf_CTF_normalized_pwbc),
+                                     t(asinh_transf_CTF_normalized_endometrium),
+                                     use = "pairwise.complete.obs",
+                                     alternative="two.sided")
+
+cor_pwbc_endometrium_value<-reshape2::melt(cor_pwbc_endometrium$cor)
+cor_pwbc_endometrium_value<-as.data.table(cor_pwbc_endometrium_value)
+cor_pwbc_endometrium_p_value<-reshape2::melt(cor_pwbc_endometrium$p)
+cor_pwbc_endometrium_p_value<-as.data.table(cor_pwbc_endometrium_p_value)
+cor_pwbc_endometrium<-cbind(cor_pwbc_endometrium_value,cor_pwbc_endometrium_p_value)
+rm(cor_pwbc_endometrium_p_value,cor_pwbc_endometrium_value)
+
+cor_pwbc_endometrium_<-cor_pwbc_endometrium[,c(1,2,3,6)]
+colnames(cor_pwbc_endometrium_)<-c("gene_pwbc",
+                                  "gene_endometrium",
+                                  "correlation",
+                                  "p_value")
+
+cor_pwbc_endometrium_<-setDT(cor_pwbc_endometrium_[order(cor_pwbc_endometrium_$p_value),])
+
+```
+
+```{r}
+#dim(cor_pwbc_endometrium[abs(cor_pwbc_endometrium$correlation)>0.80])
+```
+```{r}
+cor_pwbc_endometrium_
+```
+
+```{r}
+cor_pwbc_endometrium08<-cor_pwbc_endometrium_[abs(cor_pwbc_endometrium_$correlation)>0.80]
+cor_pwbc_endometrium08_annotated<-setDT(cor_pwbc_endometrium08)
+
+cor_pwbc_endometrium08_annotated$pwbc_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(cor_pwbc_endometrium08_annotated$gene_pwbc,                                                                                         annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pwbc_endometrium08_annotated$endometrium_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(cor_pwbc_endometrium08_annotated$gene_endometrium,
+                                                                                                           annotation.ensembl.symbol$ensembl_gene_id)]
+```
+
+
+```{r}
+write.table(cor_pwbc_endometrium08_annotated,
+            file = "/home/yassine/Downloads/between_tissue/cor_pwbc_endometrium08_annotated_2023_10_27.txt",
+            quote = TRUE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE) 
+```
+# Plot the histogram for all values of coefficient.
+
+```{r}
+
+cor_pwbc_endometrium_histogram<-ggplot()+
+geom_histogram(aes(x=correlation), 
+               data=cor_pwbc_endometrium_,
+               binwidth=0.01)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      plot.background = element_blank(),
+      axis.line = element_line(color="black"),
+      axis.text = element_text(color="black", size=10),
+      axis.title.y=element_text(color="black", size=10,hjust=0),
+      axis.title.x = element_text(color="black", size=10)
+)
+```
+
+```{r}
+cor_pwbc_endometrium_histogram
+```
+
+# Obtain gene connectivity.
+
+```{r}
+
+pwbc_endometrium_gene_connectivity<- cor_pwbc_endometrium08_annotated %>%
+  dplyr::count(pwbc_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+
+pwbc_endometrium_gene_connectivity<-pwbc_endometrium_gene_connectivity[pwbc_endometrium_gene_connectivity$n > 4,]
+pwbc_endometrium_gene_connectivity<-pwbc_endometrium_gene_connectivity[!(pwbc_endometrium_gene_connectivity$pwbc_gene_symbol ==""),]
+pwbc_endometrium_gene_connectivity$pwbc_gene_symbol<-factor(pwbc_endometrium_gene_connectivity$oocyte_gene_symbol, levels=c(pwbc_endometrium_gene_connectivity$oocyte_gene_symbol))
+
+
+gene_connectivity_oocyte<-ggplot()+
+geom_col( aes(x=oocyte_gene_symbol, y=n), data=gene_connectivity)+
+ scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  annotate("text",x=9, y=400, label="Oocytes")+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+
+gene_connectivity<- cor_oocyte_cc085_annotated %>% dplyr::count(cumulus_gene_symbol) %>% dplyr::arrange(desc(n))
+gene_connectivity<-gene_connectivity[gene_connectivity$n > 4,]
+gene_connectivity<-gene_connectivity[!(gene_connectivity$cumulus_gene_symbol ==""),]
+gene_connectivity$cumulus_gene_symbol<-factor(gene_connectivity$cumulus_gene_symbol, levels=c(gene_connectivity$cumulus_gene_symbol))
+
+
+gene_connectivity_cumulus<-ggplot()+
+geom_col( aes(x=cumulus_gene_symbol, y=n), data=gene_connectivity)+
+ scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  annotate("text",x=9, y=20, label="Cumulus cells")+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
