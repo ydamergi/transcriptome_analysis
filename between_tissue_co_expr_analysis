@@ -1,55 +1,150 @@
 # Load libraries
 ```{r}
-library('dplyr', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
-library('ggplot2', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
-library('edgeR',quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library("cowplot", quietly = TRUE,lib.loc="/usr/lib/R/site-library")
-library("GGally",quietly = TRUE,lib.loc="/usr/lib/R/site-library")
-library('readxl',quietly = TRUE,lib.loc="/usr/lib/R/site-library")
-library("VennDiagram", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library("ComplexHeatmap",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library("flashClust", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library('plotly' , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library('tidyverse' ,quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library('htmlwidgets' , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library('reshape2' ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library("ggpubr" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library("car" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library") 
+.libPaths("/usr/lib/R/site-library")
+library("edgeR", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DESeq2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DEsingle", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("biomaRt",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
 library("goseq" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
-library("stringr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("data.table",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("tidyr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("dplyr",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("ggsignif",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("kableExtra",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("grid",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("VennDiagram", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggpubr", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("Rtsne", quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("MEGENA",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DGCA", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('dplyr', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("ggplot2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggrepel", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
 library("gridExtra",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("bigmemory",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("doParallel",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("ggmanh",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("lme4",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("emmeans",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
-library("limma",quietly = TRUE , lib.loc="/usr/lib/R/site-library") 
-library('MOFA2', lib.loc="/usr/lib/R/site-library")
-library("ggrepel",quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
-library("gplots",quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
-library(doParallel,quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
-library(foreach,quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
-library(pheatmap,quietly = TRUE ,lib.loc="/usr/lib/R/site-library")
-```
-# Load count data 
-```{r}
-filtred_counts <-read.table(file = "/home/yassine/Downloads/CTF_asinh_count_data.txt",
-                            header= TRUE, 
-                            sep= "\t")
-filtred_counts <- t(filtred_counts)
-filtred_counts <- as.data.frame(filtred_counts)
+library("readr" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggfortify" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("cowplot" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("tidyverse", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("WGCNA", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("reshape2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("foreach", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("doParallel", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("bigmemory", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("gtools", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("data.table", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("flashClust", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("dendextend", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('vegan', quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ade4", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("gridGraphics", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("networkD3", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library(readxl, quietly = TRUE, lib.loc="/usr/lib/R/site-library")
 ```
 
-# Wrangle the count data for the between tissue co-expression pair
+# Load the annotation 
 ```{r}
+cow<-useMart("ensembl", 
+             dataset = "btaurus_gene_ensembl",
+             host="www.ensembl.org") 
+
+annotation.ensembl.symbol<-getBM(attributes = c('ensembl_gene_id',
+                                                'external_gene_name',
+                                                'description','hgnc_symbol',
+                                                'gene_biotype',
+                                                'transcript_length',
+                                                'chromosome_name',
+                                                'start_position',
+                                                'end_position','strand'), 
+                                 values = "*",
+                                 mart = cow)
+annotation.ensembl.transcript<-getBM(attributes = c('ensembl_gene_id',
+                                                    'gene_biotype',
+                                                    'ensembl_transcript_id',
+                                                    'transcript_length'), 
+                                     values = "*", 
+                                     mart = cow)
+
+annotation.ensembl.transcript<-annotation.ensembl.transcript[annotation.ensembl.transcript$gene_biotype =="protein_coding",]
+
+# Sorts gene ID in descending order by transcript length.
+annotation.ensembl.transcript<-annotation.ensembl.transcript[order(annotation.ensembl.transcript$ensembl_gene_id, -annotation.ensembl.transcript$transcript_length),]
+
+
+# Removes any duplicate gene IDs
+annotation.ensembl.transcript<-annotation.ensembl.transcript[!duplicated(annotation.ensembl.transcript$ensembl_gene_id),]
+
+# Include transcripts that are at least 400 base pairs long.
+annotation.ensembl.transcript<-annotation.ensembl.transcript[annotation.ensembl.transcript$transcript_length > 400,]
+
+annotation.ensembl.symbol<-annotation.ensembl.symbol[order(annotation.ensembl.symbol$ensembl_gene_id, -annotation.ensembl.symbol$transcript_length),]
+
+annotation.ensembl.symbol<-annotation.ensembl.symbol[!duplicated(annotation.ensembl.symbol$ensembl_gene_id),]
+
+gene.length<-annotation.ensembl.symbol[,c( "ensembl_gene_id", "transcript_length" )]
+
+annotation.GO.biomart<-getBM(attributes = c('ensembl_gene_id',
+                                            'external_gene_name',
+                                            'go_id',
+                                            'name_1006',
+                                            'namespace_1003'),
+                             values = "*",
+                             mart = cow)
+```
+
+# Keep only the  reads belonging to the 'protein_coding', 'lncRNA' gene classes 
+```{r}
+annotation.ensembl.symbol<-annotation.ensembl.symbol[annotation.ensembl.symbol$gene_biotype %in% c('protein_coding', 'lncRNA'),]
+```
+
+# Load count data information (meta data) 
+```{r}
+sample_info <- as.data.frame(read_excel("/home/yassine/Downloads/Repro_omics_sample_information_06_27_2023.xlsx"))
+```
+
+# Wrangle the meta data
+```{r}
+data_info <- sample_info[, -4] %>% # Remove the fourth column
+  filter(!is.na(sample_info[[5]])) %>% #Keep rows with non-NA entries in the fifth column (tissu)
+  dplyr::rename(tissu = sample)%>% # Rename the 'sample' column to 'tissu'
+  filter(!is.na(heiferID))%>% #Remove rows with NA entry in the 'heiferID' column
+  mutate(month = as.integer(gsub("-month", "", month)))#Convert character entries in the 'month' column to integers
+
+colnames(data_info)[4] <- "sample"
+data_info$sample_name <- paste0(data_info$heiferID, "_", data_info$tissu) #To avoid having duplicate samples later 
+
+data_info$sample<- as.factor(data_info$sample)
+data_info$month<- as.factor(data_info$month)
+data_info$tissu<- as.factor(data_info$tissu)
+data_info$heiferID<- as.factor(data_info$heiferID)
+```
+
+# Wrangle the read count data (TISSU specific)
+```{r}
+files<-list.files("/mnt/storage/lab_folder/repro_omics/counting/", 
+                  recursive=T,
+                  pattern="count", 
+                  full.names = TRUE)
+
+files<-files[grep("summary", files, invert = TRUE)]
+files<-files[grep(".count1", files, invert = TRUE)]
+files<-files[grep(".count2", files, invert = TRUE)]
+files<-files[grep(".sh", files, invert = TRUE)]
+
+count_data<-data.frame(matrix(nrow=27607))
+for (n in 1:132) {
+  count<-read.delim(files[n],
+                    header=TRUE, 
+                    sep= "\t", 
+                    stringsAsFactors = FALSE,
+                    comment.char= "#")
+  
+  count<-count[,c(1,7)]
+  count_data<-cbind(count_data,count)
+}
+rownames(count_data)<-count_data[,2]
+count_data<-count_data[,seq(from = 3, 
+                            to = 265,
+                            by = 2)]
+colnames(count_data)<- substr(colnames(count_data),57, 59)
+colnames(count_data)<-data_info$sample_name
+
 # Split the sample IDs into animal IDs and tissues
-sample_ids <- strsplit(colnames(filtred_counts),"_")
+sample_ids <- strsplit(colnames(count_data),"_")
+
 # Extract the animal IDs and tissues
 animal_ids <- vector("character", length = length(sample_ids))
 tissues <- vector("character", length = length(sample_ids))
@@ -57,111 +152,228 @@ for (i in 1:length(sample_ids)) {
   animal_ids[i] <- sample_ids[[i]][1]
   tissues[i] <- sample_ids[[i]][2]
 }
+
+pwbc_columns <- grep("pwbc", colnames(count_data))
+pwbc_read_counts <- count_data[, pwbc_columns]
+
+endometrium_columns <- grep("endometrium", colnames(count_data))
+endometrium_read_counts <- count_data[, endometrium_columns]
+
+hypothalamus_columns <- grep("hypothalamus", colnames(count_data))
+hypothalamus_read_counts <- count_data[, hypothalamus_columns]
+
+pituitary_columns <- grep("pituitary", colnames(count_data))
+pituitary_read_counts <- count_data[, pituitary_columns]
+```
+
+# Annotated tissue specific count data 
+```{r}
+pwbc_read_counts_annotated <- merge(pwbc_read_counts,
+                                    annotation.ensembl.symbol,
+                                    by.x="row.names",
+                                    by.y="ensembl_gene_id",
+                                    all.x=FALSE,
+                                    all.y=FALSE)
+
+endometrium_read_counts_annotated <- merge(endometrium_read_counts,
+                                           annotation.ensembl.symbol,
+                                           by.x="row.names",
+                                           by.y="ensembl_gene_id",
+                                           all.y=FALSE)
+
+hypothalamus_read_counts_annotated <- merge(hypothalamus_read_counts,
+                                            annotation.ensembl.symbol,
+                                            by.x="row.names",
+                                            by.y="ensembl_gene_id",
+                                            all.y=FALSE)
+
+pituitary_read_counts_annotated <- merge(pituitary_read_counts,
+                                         annotation.ensembl.symbol,
+                                         by.x="row.names",
+                                         by.y="ensembl_gene_id",
+                                         all.y=FALSE)
+pwbc_gene_length<-pwbc_read_counts_annotated$transcript_length
+endometrium_gene_length<-endometrium_read_counts_annotated$transcript_length
+hypothalamus_gene_length<-hypothalamus_read_counts_annotated$transcript_length
+pituitary_gene_length<-pituitary_read_counts_annotated$transcript_length
+pwbc_count_data<-pwbc_read_counts_annotated[,c(2:34)]
+rownames(pwbc_count_data)<-pwbc_read_counts_annotated$Row.names
+
+endometrium_count_data<-endometrium_read_counts_annotated[,c(2:34)]
+rownames(endometrium_count_data)<-endometrium_read_counts_annotated$Row.names
+
+hypothalamus_count_data<-hypothalamus_read_counts_annotated[,c(2:34)]
+rownames(hypothalamus_count_data)<-hypothalamus_read_counts_annotated$Row.names
+
+pituitary_count_data<-pituitary_read_counts_annotated[,c(2:34)]
+rownames(pituitary_count_data)<-pituitary_read_counts_annotated$Row.names
+```
+
+# Filter the Tissue specifc read count data 
+```{r}
+x <- pwbc_count_data / pwbc_gene_length
+pwbc_tpm <- as.data.frame(t( t(x) * 1e6 / colSums(x) ))
+pwbc_fpkm<-as.data.frame(edgeR::rpkm(pwbc_count_data, pwbc_gene_length))
+pwbc_cpm<-as.data.frame(edgeR::cpm(pwbc_count_data))
+pwbc_cpm_filtered<-pwbc_cpm[rowSums(pwbc_cpm>2) > 8,]
+pwbc_tpm_filtered<-pwbc_fpkm[rowSums(pwbc_tpm>1) > 8,]
+
+genes_expressed_pwbc<-intersect(rownames(pwbc_cpm_filtered), rownames(pwbc_tpm_filtered))
+pwbc_tpm_filtered<-pwbc_tpm_filtered[rownames(pwbc_tpm_filtered) %in% genes_expressed_pwbc,]
+pwbc_cpm_filtered<-pwbc_cpm_filtered[rownames(pwbc_cpm_filtered) %in% genes_expressed_pwbc,]
+pwbc_count_filtered<-pwbc_count_data[rownames(pwbc_count_data) %in% genes_expressed_pwbc,]
+
+pwbc_tpm_filtered<-pwbc_tpm_filtered[complete.cases(pwbc_tpm_filtered),]
+pwbc_count_filtered<-pwbc_count_filtered[complete.cases(pwbc_count_filtered),]
 ```
 ```{r}
-pwbc_columns <- grep("pwbc", colnames(filtred_counts))
-pwbc_filtred_counts <- filtred_counts[, pwbc_columns]
-
-endometrium_columns <- grep("endometrium", colnames(filtred_counts))
-endometrium_filtred_counts <- filtred_counts[, endometrium_columns]
-
-hypothalamus_columns <- grep("hypothalamus", colnames(filtred_counts))
-hypothalamus_filtred_counts <- filtred_counts[, hypothalamus_columns]
-
-pituitary_columns <- grep("pituitary", colnames(filtred_counts))
-pituitary_filtred_counts <- filtred_counts[, pituitary_columns]
+write_delim(pwbc_count_filtered,
+            "/home/yassine/Downloads/between_tissue/pwbc_count_filtered.txt",
+            delim = "\t",
+            quote =  "none")
 ```
 
 ```{r}
-## We work with 4 sets:
-nSets = 4;
-## Form multi-set expression data: 
-multiExpr = vector(mode = "list", length = nSets)
-multiExpr[[1]] = list(data = as.data.frame(t(pwbc_filtred_counts)))
-multiExpr[[2]] = list(data = as.data.frame(t(endometrium_filtred_counts)))
-multiExpr[[3]] = list(data = as.data.frame(t(hypothalamus_filtred_counts)))
-multiExpr[[4]] = list(data = as.data.frame(t(pituitary_filtred_counts)))
-```
+x <- endometrium_count_data / endometrium_gene_length
+endometrium_tpm <- as.data.frame(t( t(x) * 1e6 / colSums(x) ))
+endometrium_fpkm<-as.data.frame(edgeR::rpkm(endometrium_count_data, endometrium_gene_length))
+endometrium_cpm<-as.data.frame(edgeR::cpm(endometrium_count_data))
+endometrium_cpm_filtered<-endometrium_cpm[rowSums(endometrium_cpm>2) > 8,]
+endometrium_tpm_filtered<-endometrium_fpkm[rowSums(endometrium_tpm>1) > 8,]
 
-# Default WGCNA filter
-```{r}
-gsg = goodSamplesGenesMS(multiExpr, verbose = 3);
-gsg$allOK
+genes_expressed_endometrium<-intersect(rownames(endometrium_cpm_filtered), rownames(endometrium_tpm_filtered))
+endometrium_tpm_filtered<-endometrium_tpm_filtered[rownames(endometrium_tpm_filtered) %in% genes_expressed_endometrium,]
+endometrium_cpm_filtered<-endometrium_cpm_filtered[rownames(endometrium_cpm_filtered) %in% genes_expressed_endometrium,]
+endometrium_count_filtered<-endometrium_count_data[rownames(endometrium_count_data) %in% genes_expressed_endometrium,]
 
-if (!gsg$allOK)
-{
-  # Print information about the removed genes:
-  if (sum(!gsg$goodGenes) > 0)
-    printFlush(paste("Removing genes:", paste(names(multiExpr[[1]]$data)[!gsg$goodGenes],
-                                              collapse = ", ")))
-  for (set in 1:exprSize$nSets)
-  {
-    if (sum(!gsg$goodSamples[[set]]))
-      printFlush(paste("In set", setLabels[set], "removing samples",
-                       paste(rownames(multiExpr[[set]]$data)[!gsg$goodSamples[[set]]], collapse = ", ")))
-    # Remove the offending genes and samples
-    multiExpr[[set]]$data = multiExpr[[set]]$data[gsg$goodSamples[[set]], gsg$goodGenes];
-  }
-  # Update exprSize
-  exprSize = checkSets(multiExpr)
-}
-```
-
-# Rudimentary data cleaning and outlier removal
-```{r}
-sampleTrees = list()
-for (set in 1:nSets)
-{
-  sampleTrees[[set]] = hclust(dist(multiExpr[[set]]$data),
-                              method = "average")
-}
-par(mfrow=c(2,1))
-par(mar = c(0, 4, 2, 0))
-for (set in 1:nSets)
-  plot(sampleTrees[[set]],
-       main = paste("Sample clustering on all genes in", setLabels[set]),
-       xlab="", 
-       sub="",
-       cex = 0.6)
-```
-# zoom on 
-```{r}
-baseHeight = 105
-cutHeights = c(105, 105*exprSize$nSamples[2]/exprSize$nSamples[1]);
-## Re-plot the dendrograms including the cut lines
-par(mfrow=c(2,1))
-par(mar = c(0, 4, 2, 0))
-
-plot(sampleTrees[[1]],
-     main = paste("Sample clustering on all genes in", setLabels[1]),
-     xlab="",
-     sub="",
-     cex = 0.7);
-abline(h=cutHeights[1], col = "red");
-```
-# Loading the MetaData (data_info)
-```{r}
-sample_info <- as.data.frame(read_excel("/home/yassine/Downloads/Repro_omics_sample_information_06_27_2023.xlsx"))
-
-```
-# Wrangling the metadata
-```{r}
-data_info <- sample_info[, -4] %>% # Remove the fourth column
-  filter(!is.na(sample_info[[5]])) %>% #Keep rows with non-NA entries in the fifth column (tissu)
-  dplyr::rename(tissu = sample)%>% # Rename the 'sample' column to 'tissu'
-  filter(!is.na(heiferID))%>% #Remove rows with NA entry in the 'heiferID' column
-  mutate(month = as.integer(gsub("-month", "", month))) #Convert character entries in the 'month' column to integers
-
-colnames(data_info)[4] <- "sample"
-data_info$sample_name <- paste0(data_info$heiferID, "_", data_info$tissu) #To avoid having duplicate samples later 
+endometrium_tpm_filtered<-endometrium_tpm_filtered[complete.cases(endometrium_tpm_filtered),]
+endometrium_count_filtered<-endometrium_count_filtered[complete.cases(endometrium_count_filtered),]
 ```
 ```{r}
-data_info$sample<- as.factor(data_info$sample)
-data_info$month<- as.factor(data_info$month)
-data_info$tissu<- as.factor(data_info$tissu)
-data_info$heiferID<- as.factor(data_info$heiferID)
+write_delim(endometrium_count_filtered,
+            "/home/yassine/Downloads/between_tissue/endometrium_count_filtered.txt",
+            delim = "\t",
+            quote =  "none")
 ```
 
+```{r}
+x <- pituitary_count_data / pituitary_gene_length
+pituitary_tpm <- as.data.frame(t( t(x) * 1e6 / colSums(x) ))
+pituitary_fpkm<-as.data.frame(edgeR::rpkm(pituitary_count_data, pituitary_gene_length))
+pituitary_cpm<-as.data.frame(edgeR::cpm(pituitary_count_data))
+pituitary_cpm_filtered<-pituitary_cpm[rowSums(pituitary_cpm>2) > 8,]
+pituitary_tpm_filtered<-pituitary_fpkm[rowSums(pituitary_tpm>1) > 8,]
+
+genes_expressed_pituitary<-intersect(rownames(pituitary_cpm_filtered), rownames(pituitary_tpm_filtered))
+pituitary_tpm_filtered<-pituitary_tpm_filtered[rownames(pituitary_tpm_filtered) %in% genes_expressed_pituitary,]
+pituitary_cpm_filtered<-pituitary_cpm_filtered[rownames(pituitary_cpm_filtered) %in% genes_expressed_pituitary,]
+pituitary_count_filtered<-pituitary_count_data[rownames(pituitary_count_data) %in% genes_expressed_pituitary,]
+
+pituitary_tpm_filtered<-pituitary_tpm_filtered[complete.cases(pituitary_tpm_filtered),]
+pituitary_count_filtered<-pituitary_count_filtered[complete.cases(pituitary_count_filtered),]
+
+```
+```{r}
+write_delim(pituitary_count_filtered,
+            "/home/yassine/Downloads/between_tissue/pituitary_count_filtered.txt",
+            delim = "\t",
+            quote =  "none")
+```
+
+```{r}
+x <- hypothalamus_count_data / hypothalamus_gene_length
+hypothalamus_tpm <- as.data.frame(t( t(x) * 1e6 / colSums(x) ))
+hypothalamus_fpkm<-as.data.frame(edgeR::rpkm(hypothalamus_count_data, hypothalamus_gene_length))
+hypothalamus_cpm<-as.data.frame(edgeR::cpm(hypothalamus_count_data))
+hypothalamus_cpm_filtered<-hypothalamus_cpm[rowSums(hypothalamus_cpm>2) > 8,]
+hypothalamus_tpm_filtered<-hypothalamus_fpkm[rowSums(hypothalamus_tpm>1) > 8,]
+
+genes_expressed_hypothalamus<-intersect(rownames(hypothalamus_cpm_filtered), rownames(hypothalamus_tpm_filtered))
+hypothalamus_tpm_filtered<-hypothalamus_tpm_filtered[rownames(hypothalamus_tpm_filtered) %in% genes_expressed_hypothalamus,]
+hypothalamus_cpm_filtered<-hypothalamus_cpm_filtered[rownames(hypothalamus_cpm_filtered) %in% genes_expressed_hypothalamus,]
+hypothalamus_count_filtered<-hypothalamus_count_data[rownames(hypothalamus_count_data) %in% genes_expressed_hypothalamus,]
+
+hypothalamus_tpm_filtered<-hypothalamus_tpm_filtered[complete.cases(hypothalamus_tpm_filtered),]
+hypothalamus_count_filtered<-hypothalamus_count_filtered[complete.cases(hypothalamus_count_filtered),]
+
+```
+```{r}
+write_delim(hypothalamus_count_filtered,
+            "/home/yassine/Downloads/between_tissue/hypothalamus_count_filtered.txt",
+            delim = "\t",
+            quote =  "none")
+```
+
+# Venn diagramd to see the overlapping genes between the filterred tissue specific read counts 
+```{r}
+gene_numbers_venn_diagram<-venn.diagram(list("pwbc"=rownames(pwbc_count_filtered),
+                                             "endometrium"=rownames(endometrium_count_filtered),
+                                             "hypothalamus"=rownames(hypothalamus_count_filtered),
+                                             "pituitary"=rownames(pituitary_count_filtered)),
+                                        cex=1,
+                                        scaled= FALSE, 
+                                        filename = NULL,
+                                        output=TRUE,
+                                        col="transparent",
+                                        fill=c("green", "red","blue","yellow"))
+```
+```{r}
+ggdraw(gene_numbers_venn_diagram)
+```
+
+# CTF and asinh transform the filtered  read count data
+```{r}
+lib_size <- base::colSums(pwbc_count_filtered)
+norm_factors <- calcNormFactors(object = pwbc_count_filtered,
+                                lib.size = lib_size,
+                                method = "TMM")
+CTF_normalized_pwbc <- sweep(pwbc_count_filtered,2,norm_factors,"/")
+asinh_transf_CTF_normalized_pwbc<-asinh(CTF_normalized_pwbc)
+
+lib_size <- base::colSums(endometrium_count_filtered)
+norm_factors <- calcNormFactors(object = endometrium_count_filtered,
+                                lib.size = lib_size,
+                                method = "TMM")
+
+CTF_normalized_endometrium <- sweep(endometrium_count_filtered,2,norm_factors,"/")
+asinh_transf_CTF_normalized_endometrium<-asinh(CTF_normalized_endometrium)
+
+lib_size <- base::colSums(hypothalamus_count_filtered)
+norm_factors <- calcNormFactors(object = hypothalamus_count_filtered,
+                                lib.size = lib_size,
+                                method = "TMM")
+CTF_normalized_hypothalamus <- sweep(hypothalamus_count_filtered,2,norm_factors,"/")
+asinh_transf_CTF_normalized_hypothalamus<-asinh(CTF_normalized_hypothalamus)
+
+lib_size <- base::colSums(pituitary_count_filtered)
+norm_factors <- calcNormFactors(object = pituitary_count_filtered,
+                                lib.size = lib_size,
+                                method = "TMM")
+CTF_normalized_pituitary <- sweep(pituitary_count_filtered,2,norm_factors,"/")
+asinh_transf_CTF_normalized_pituitary<-asinh(CTF_normalized_pituitary)
+```
+```{r}
+write_delim(asinh_transf_CTF_normalized_pwbc,
+            "/home/yassine/Downloads/between_tissue/pwbc_filtered_transformed.txt",
+            delim = "\t",
+            quote =  "none")
+
+write_delim(asinh_transf_CTF_normalized_endometrium,
+            "/home/yassine/Downloads/between_tissue/endometrium_filtered_transformed.txt",
+            delim = "\t",
+            quote =  "none")
+
+write_delim(asinh_transf_CTF_normalized_hypothalamus,
+            "/home/yassine/Downloads/between_tissue/hypothalamus_filtered_transformed.txt",
+            delim = "\t",
+            quote =  "none")
+
+write_delim(asinh_transf_CTF_normalized_pituitary,
+            "/home/yassine/Downloads/between_tissue/pituitary_filtered_transformed.txt",
+            delim = "\t",
+            quote =  "none")
+```
+#--------------------- In between tissue co-expression analysis 
 # Use multiple cores 
 ```{r}
 # Number of CPU cores to use
@@ -172,161 +384,491 @@ registerDoParallel(cl)
 ```
 
 ```{r}
-pwbc_endo_corr.pvals <- corAndPvalue(multiExpr[[1]]$data,
-                                     multiExpr[[2]]$data)
-```
-```{r}
-write.table(pwbc_endo_corr.pvals$cor,
-            file="/home/yassine/Downloads/between_tissue/pwbc_endo_corr.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-write.table(pwbc_endo_corr.pvals$p,
-            file="/home/yassine/Downloads/between_tissue/pwbc_endo_pvalue.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_endo_corr.txt' )
-system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_endo_pvalue.txt' )
+sample_a<-data.frame()
+random_a<-data.frame()
+random_b<-data.frame(matrix(NA, nrow = 173854096, ncol = 1))
+for (i in (1:5)){
+randomization<-sample(1:33,replace=F)
 
-```
-```{r}
-pwbc_hypo_corr.pvals <- corAndPvalue(multiExpr[[1]]$data,
-                                     multiExpr[[3]]$data)
-```
-```{r}
-write.table(pwbc_hypo_corr.pvals$cor,
-            file="/home/yassine/Downloads/between_tissue/pwbc_hypo_corr.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-write.table(pwbc_hypo_corr.pvals$p,
-            file="/home/yassine/Downloads/between_tissue/pwbc_hypo_pvalue.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_hypo_corr.txt' )
-system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_hypo_pvalue.txt' )
+random_a<-WGCNA::cor(t(asinh_transf_CTF_normalized_pwbc), 
+                     t(asinh_transf_CTF_normalized_endometrium[,randomization]),
+                     use = "pairwise.complete.obs",
+                     method="pearson")
+random_a<-reshape2::melt(random_a) 
+random_b<-cbind(random_b,random_a$value)
+sample_a<-rbind(sample_a,randomization)
+}
+random_b<-random_b[,-1]
+summary(random_b)
 
+plot_null_distribution_pwbc_endo<-ggplot()+
+geom_histogram(aes(x=random_b[,1]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,2]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,3]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,4]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,5]), data=random_b, binwidth=0.01, alpha=0.2)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+title = "pwbc vs endometrium null distribution",
+panel.background = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_blank(),
+axis.line = element_line(color="black"),
+axis.text = element_text(color="black", size=10),
+axis.title.y=element_text(color="black", size=10,hjust=0),
+axis.title.x = element_text(color="black", size=10)
+)
 ```
 ```{r}
-pwbc_pit_corr.pvals <- corAndPvalue(multiExpr[[1]]$data,
-                                    multiExpr[[4]]$data)
-```
-
-```{r}
-write.table(pwbc_pit_corr.pvals$cor,
-            file="/home/yassine/Downloads/between_tissue/pwbc_pit_corr.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-write.table(pwbc_pit_corr.pvals$p,
-            file="/home/yassine/Downloads/between_tissue/pwbc_pit_pvalue.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_pit_corr.txt' )
-system('bzip2 --best /home/yassine/Downloads/between_tissue/pwbc_pit_pvalue.txt' )
-```
-
-```{r}
-endo_hypo_corr.pvals <- corAndPvalue(multiExpr[[2]]$data,
-                                     multiExpr[[3]]$data)
-```
-
-```{r}
-write.table(endo_hypo_corr.pvals$cor,
-            file="/home/yassine/Downloads/between_tissue/endo_hypo_corr.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-write.table(endo_hypo_corr.pvals$p,
-            file="/home/yassine/Downloads/between_tissue/endo_hypo_pvalue.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-system('bzip2 --best /home/yassine/Downloads/between_tissue/endo_hypo_corr.txt' )
-system('bzip2 --best /home/yassine/Downloads/between_tissue/endo_hypo_pvalue.txt' )
-```
-
-```{r}
-endo_pit_corr.pvals <- corAndPvalue(multiExpr[[2]]$data,
-                                    multiExpr[[4]]$data)
-```
-```{r}
-write.table(endo_pit_corr.pvals$cor,
-            file="/home/yassine/Downloads/between_tissue/endo_pit_corr.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-write.table(endo_pit_corr.pvals$p,
-            file="/home/yassine/Downloads/between_tissue/endo_pit_pvalue.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-system('bzip2 --best /home/yassine/Downloads/between_tissue/endo_pit_corr.txt' )
-system('bzip2 --best /home/yassine/Downloads/between_tissue/endo_pit_pvalue.txt' )
-```
-
-```{r}
-hypo_pit_corr.pvals <- corAndPvalue(multiExpr[[3]]$data,
-                                    multiExpr[[4]]$data)
-```
-
-```{r}
-write.table(hypo_pit_corr.pvals$cor,
-            file="/home/yassine/Downloads/between_tissue/hypo_pitt_corr.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-write.table(hypo_pit_corr.pvals$p,
-            file="/home/yassine/Downloads/between_tissue/hypo_pit_pvalue.txt",
-            sep = "\t",
-            append = FALSE,
-            quote = FALSE)
-system('bzip2 --best /home/yassine/Downloads/between_tissue/hypo_pitt_corr.txt' )
-system('bzip2 --best /home/yassine/Downloads/between_tissue/hypo_pit_pvalue.txt' )
-```
-```{r}
-stopCluster(cl)
-```
-
-# Heat map visualisation of the Pearson correlation matrix
-```{r}
-# Number of CPU cores to use
-num_cores <- 6
-# Register parallel cluster
-cl <- makeCluster(num_cores)
-registerDoParallel(cl)
-```
-
-# Create a heatmap 
-
-#____pwbc_endo
-```{r}
-pwbc_endo_correlation_matrix <- pwbc_endo_corr.pvals$cor
-pwbc_endo_heatmap <- CorLevelPlot(pwbc_endo_correlation_matrix,
-                                   x=rownames(pwbc_endo_correlation_matrix),
-                                   y=colnames(pwbc_endo_correlation_matrix),
-                                   col = c("blue1", "skyblue", "white", "pink", "red"))+
-labs(title ="PWBC vs endometrium Correlation Heatmap")
-```
-```{r}
-ggsave(filename = "/home/yassine/Downloads/between_tissue/Figures/pwbc_endo_heatmap.png", 
-       plot = pwbc_endo_heatmap, 
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pwbc_endometrium_null_distribution.png",
+       plot = plot_null_distribution_pwbc_endo, 
        width = 10, 
        height = 10)
 ```
+
+# Compute the correlation matrix between pwbc and the endometrium tissues
 ```{r}
-# Perform Bonferroni correction on the p-values
-pwbc_endo_adjusted_p_values <- p.adjust(pwbc_endo_corr.pvals$p, method = "bonferroni")
-# Extract the significantly correlated genes
-pwbc_endo_sign_corr_genes <- which(pwbc_endo_adjusted_p_values < 0.05)
+cor_pwbc_endometrium <- corAndPvalue(t(asinh_transf_CTF_normalized_pwbc),
+                                     t(asinh_transf_CTF_normalized_endometrium),
+                                     use = "pairwise.complete.obs",
+                                     alternative="two.sided")
+
+cor_pwbc_endometrium_value<-reshape2::melt(cor_pwbc_endometrium$cor)
+cor_pwbc_endometrium_value<-as.data.table(cor_pwbc_endometrium_value)
+cor_pwbc_endometrium_p_value<-reshape2::melt(cor_pwbc_endometrium$p)
+cor_pwbc_endometrium_p_value<-as.data.table(cor_pwbc_endometrium_p_value)
+cor_pwbc_endometrium<-cbind(cor_pwbc_endometrium_value,cor_pwbc_endometrium_p_value)
+rm(cor_pwbc_endometrium_p_value,cor_pwbc_endometrium_value)
+
+cor_pwbc_endometrium_<-cor_pwbc_endometrium[,c(1,2,3,6)]
+colnames(cor_pwbc_endometrium_)<-c("gene_pwbc",
+                                  "gene_endometrium",
+                                  "correlation",
+                                  "p_value")
+cor_pwbc_endometrium_<-setDT(cor_pwbc_endometrium_[order(cor_pwbc_endometrium_$p_value),])
+
+```
+
+#Filtering the pairs of genes with signficant cocorrelation (>0.75)
+```{r}
+dim(cor_pwbc_endometrium_[abs(cor_pwbc_endometrium_$correlation)>0.75])
 ```
 ```{r}
-write.table(pwbc_endo_sign_corr_genes,
-            file="/home/yassine/Downloads/between_tissue/pwbc_endo_sign_corr_genes.txt",
+cor_pwbc_endometrium075<-cor_pwbc_endometrium_[abs(cor_pwbc_endometrium_$correlation)>0.75]
+cor_pwbc_endometrium075_annotated<-setDT(cor_pwbc_endometrium075)
+
+cor_pwbc_endometrium075_annotated$pwbc_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(cor_pwbc_endometrium075_annotated$gene_pwbc,                                                                                         annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pwbc_endometrium075_annotated$endometrium_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(cor_pwbc_endometrium075_annotated$gene_endometrium,
+                                                                                                           annotation.ensembl.symbol$ensembl_gene_id)]
+```
+```{r}
+write.table(cor_pwbc_endometrium075_annotated,
+            file = "/home/yassine/Downloads/between_tissue/cor_pwbc_endometrium075_annotated_2023_10_27.txt",
+            quote = TRUE,
             sep = "\t",
-            append = FALSE,
-            quote = FALSE)
+            row.names = TRUE,
+            col.names = TRUE) 
+```
+
+# Plot the histogram for all values of coefficient.
+```{r}
+cor_pwbc_endometrium_histogram<-ggplot()+
+geom_histogram(aes(x=correlation), 
+               data=cor_pwbc_endometrium_,
+               binwidth=0.01)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      plot.background = element_blank(),
+      axis.line = element_line(color="black"),
+      axis.text = element_text(color="black", size=10),
+      axis.title.y=element_text(color="black", size=10,hjust=0),
+      axis.title.x = element_text(color="black", size=10)
+)
+```
+
+# Obtain gene connectivity.
+```{r}
+pwbc_gene_connectivity<- cor_pwbc_endometrium075_annotated %>%
+  dplyr::count(pwbc_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+
+pwbc_gene_connectivity<-pwbc_gene_connectivity[pwbc_gene_connectivity$n > 1,]
+pwbc_gene_connectivity<-pwbc_gene_connectivity[!(pwbc_gene_connectivity$pwbc_gene_symbol ==""),]
+pwbc_gene_connectivity$pwbc_gene_symbol<-factor(pwbc_gene_connectivity$pwbc_gene_symbol,
+                                                levels=c(pwbc_gene_connectivity$pwbc_gene_symbol))
+
+gene_connectivity_pwbc<-ggplot()+
+geom_col( aes(x=pwbc_gene_symbol, y=n), 
+          data=pwbc_gene_connectivity)+
+  scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+```
+```{r}
+endometrium_gene_connectivity<- cor_pwbc_endometrium075_annotated %>%
+  dplyr::count(endometrium_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+
+endometrium_gene_connectivity<-endometrium_gene_connectivity[endometrium_gene_connectivity$n > 1,]
+endometrium_gene_connectivity<-endometrium_gene_connectivity[!(endometrium_gene_connectivity$endometrium_gene_symbol ==""),]
+endometrium_gene_connectivity$endometrium_gene_symbol<-factor(endometrium_gene_connectivity$endometrium_gene_symbol,
+                                                levels=c(endometrium_gene_connectivity$endometrium_gene_symbol))
+gene_connectivity_endometrium<-ggplot()+
+geom_col( aes(x=endometrium_gene_symbol, y=n), 
+          data=endometrium_gene_connectivity)+
+  scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+```
+
+# Plot examples of co-expressed genes between pwbc and endometrium tissues
+```{r}
+
+cor_pwbc_endo_filtered <- cor_pwbc_endometrium075
+cor_pwbc_endo_filtered$pwbc_gene_symbol <-  annotation.ensembl.symbol$external_gene_name[match(cor_pwbc_endo_filtered$gene_pwbc,
+                                                     annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pwbc_endo_filtered$endometrium_gene_symbol <-
+  annotation.ensembl.symbol$external_gene_name[match(cor_pwbc_endo_filtered$gene_endometrium,
+                                                     annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pwbc_endo_filtered$angle<-NA
+cor_pwbc_endo_filtered$r.squared<-NA
+cor_pwbc_endo_filtered$rmse<-NA
+cor_pwbc_endo_filtered$fstatistic<-NA
+
+for (i in seq(dim(cor_pwbc_endo_filtered)[1]))
+{
+  gene_pwbc<-as.character(cor_pwbc_endo_filtered$gene_pwbc)[i]
+  gene_endo<-as.character(cor_pwbc_endo_filtered$gene_endometrium)[i]
+  
+  gene_symbol_pwbc<-as.character(cor_pwbc_endo_filtered$pwbc_gene_symbol)[i]
+  gene_symbol_endo<-as.character(cor_pwbc_endo_filtered$endometrium_gene_symbol)[i]
+  
+  expression_pwbc<-data.frame(expression_pwbc=t(pwbc_tpm_filtered[rownames(pwbc_tpm_filtered)==gene_pwbc,])[,1])
+  expression_endo<-data.frame(expression_endo=t(endometrium_tpm_filtered[rownames(endometrium_tpm_filtered)==gene_endo,])[,1])
+  
+  model_pwbc_endo <-lm(expression_pwbc$expression_pwbc ~ expression_endo$expression_endo)
+  cor_pwbc_endo_filtered$angle[i]<-unname(atan(coef(model_pwbc_endo)[2]) * (180 / pi))
+  cor_pwbc_endo_filtered$r.squared[i]<-summary(model_pwbc_endo)$adj.r.squared
+  cor_pwbc_endo_filtered$rmse[i]<-sqrt(mean(model_pwbc_endo$residuals^2))
+  cor_pwbc_endo_filtered$fstatistic[i]<-unname(summary(model_pwbc_endo)$fstatistic[1])
+}
+
+cor_pwbc_endo_filtered<-cor_pwbc_endo_filtered[cor_pwbc_endo_filtered$angle > 0 & cor_pwbc_endo_filtered$angle < 90,]
+cor_pwbc_endo_filtered<-cor_pwbc_endo_filtered[order(cor_pwbc_endo_filtered$rmse ,
+                                                     decreasing = FALSE),]
+cor_pwbc_endo_filtered<-cor_pwbc_endo_filtered[cor_pwbc_endo_filtered$r.squared>0.2,]
+cor_pwbc_endo_filtered<-cor_pwbc_endo_filtered[c(2:4,6:14),]
+```
+```{r}
+dataframegraph<-data.frame()
+
+for (i in c(1:10)){
+
+gene_pwbc<-as.character(cor_pwbc_endo_filtered$gene_pwbc)[i]
+gene_endometrium<-as.character(cor_pwbc_endo_filtered$gene_endometrium)[i]
+
+gene_symbol_pwbc<-as.character(cor_pwbc_endo_filtered$pwbc_gene_symbol)[i]
+gene_symbol_endometrium<-as.character(cor_pwbc_endo_filtered$endometrium_gene_symbol)[i]
+
+expression_pwbc<-data.frame(expression_pwbc=t(pwbc_tpm_filtered[rownames(pwbc_tpm_filtered)==gene_pwbc,])[,1])
+
+expression_endometrium<-data.frame( expression_endometrium=t(endometrium_tpm_filtered[rownames(endometrium_tpm_filtered)==gene_endometrium,])[,1])
+
+graph<-i
+dataframegraph<-rbind(data.frame(gene_pwbc,
+                                 gene_endometrium,
+                                 gene_symbol_pwbc,
+                                 gene_symbol_endometrium,
+                                 expression_pwbc,
+                                 expression_endometrium,
+                                 graph),
+                      dataframegraph)
+
+}
+plots<-list()
+for (i in c(1:10)){
+plots[[i]]<- ggplot(dataframegraph[dataframegraph$graph==i,],
+                    aes(x=expression_pwbc,
+                        y= expression_endometrium ))+
+geom_point()+
+geom_smooth(method='lm', formula= y~x)+
+scale_x_continuous(name=dataframegraph[dataframegraph$graph==i,]$gene_symbol_pwbc[1])+
+scale_y_continuous(name=dataframegraph[dataframegraph$graph==i,]$gene_symbol_endometrium[1])+
+theme_classic(base_size=12)+
+theme(
+axis.title=element_text(face="italic", size=10),
+axis.text=element_text(size=10, color="black"),
+)
+
+}
+
+y.grob <- textGrob("endometrium",
+                   gp=gpar(fontface="plain", col="black", fontsize=10),
+                   rot=90)
+x.grob <- textGrob("pwbc",
+                   gp=gpar(fontface="plain", col="black", fontsize=10))
+
+plot_regr<-plot_grid( grid.arrange(arrangeGrob(plot_grid(plotlist=plots, nrow=3),
+                                               left = y.grob,
+                                               bottom = x.grob)))
+```
+
+# Test endometrium genes (significantly co-expressed with pwbc) for enrichment of biological processes.
+```{r}
+all_genes_endo<-data.frame( gene=rownames(endometrium_count_filtered),
+                       stringsAsFactors=FALSE )
+rownames(all_genes_endo)<-all_genes_endo$gene
+N_expressed_genes<-length(all_genes_endo$gene)
+
+gene.length_endo<-gene.length[gene.length$ensembl_gene_id %in% all_genes_endo$gene,]
+annotation.genelength.biomart_vector_endo<-gene.length_endo$transcript_length
+names(annotation.genelength.biomart_vector_endo)<-gene.length_endo$ensembl_gene_id
+
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes_endo),]
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)]
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes_endo),]
+
+test.genes_endo<-data.frame(a=unique(cor_pwbc_endometrium_[abs(cor_pwbc_endometrium_$correlation)>0.75]$gene_endometrium), 
+                       stringsAsFactors=FALSE)
+all_genes_endo_numeric<-as.integer(all_genes_endo$gene %in% test.genes_endo$a)
+names(all_genes_endo_numeric)<-all_genes_endo$gene
+N_sig_genes<-length(test.genes_endo$a)
+```
+
+```{r}
+set.seed(88972)
+
+pwf_endo<-nullp(all_genes_endo_numeric,
+           bias.data=annotation.genelength.biomart_vector_endo,
+           plot.fit=FALSE )
+
+GO_BP_Cats_endometrium_corr_pwbc <-goseq(pwf_endo,
+                                         gene2cat=annotation.GO.BP.biomart,
+                                         method ="Sampling",
+                                         repcnt = 5000,
+                                         use_genes_without_cat=FALSE)
+
+GO_BP_Cats_endometrium_corr_pwbc<-GO_BP_Cats_endometrium_corr_pwbc[GO_BP_Cats_endometrium_corr_pwbc$numInCat>3,] 
+
+GO_BP_Cats_endometrium_corr_pwbc$FWER<-p.adjust(GO_BP_Cats_endometrium_corr_pwbc$over_represented_pvalue,
+                                                method ="holm")
+
+GO_BP_Cats_endometrium_corr_pwbc<-GO_BP_Cats_endometrium_corr_pwbc[with(GO_BP_Cats_endometrium_corr_pwbc,
+                                                                        order(FWER,over_represented_pvalue,-numInCat)), ]
+
+GO_BP_Cats_endometrium_corr_pwbc$fold_enrichment<-(GO_BP_Cats_endometrium_corr_pwbc$numDEInCat/N_sig_genes)/(GO_BP_Cats_endometrium_corr_pwbc$numInCat/N_expressed_genes)
+
+annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% test.genes_endo$a, ]
+```
+```{r}
+GO_BP_Cats_endometrium_corr_pwbc<-merge(GO_BP_Cats_endometrium_corr_pwbc,
+                                        annotation.GO.BP.biomart_testgenes,
+                                        by.x="category",
+                                        by.y="go_id",
+                                        all.x=FALSE, 
+                                        all.y=TRUE)
+
+GO_BP_Cats_endometrium_corr_pwbc<-merge(GO_BP_Cats_endometrium_corr_pwbc,
+                                        annotation.ensembl.symbol,
+                                        by.x="ensembl_gene_id",
+                                        by.y="ensembl_gene_id", 
+                                        all=FALSE, 
+                                        all.x=TRUE,
+                                        all.y=FALSE)
+
+GO_BP_Cats_endometrium_corr_pwbc<-GO_BP_Cats_endometrium_corr_pwbc[with(GO_BP_Cats_endometrium_corr_pwbc, 
+                                                                        order(FWER,term)), ]
+#GO_BP_Cats_endometrium_corr_pwbc<-GO_BP_Cats_endometrium_corr_pwbc[GO_BP_Cats_endometrium_corr_pwbc$FWER <= 0.11,]
+GO_BP_Cats_endometrium_corr_pwbc$term<-factor(GO_BP_Cats_endometrium_corr_pwbc$term,
+                                              levels=c(rev(unique(GO_BP_Cats_endometrium_corr_pwbc$term))))
+```
+```{r}
+#write.table(GO_BP_Cats_cumulus_corr_oocyte, file= "/mnt/storage/lab_folder/shared_R_codes/fernando/BCB_oocyte_cumulus/results/2022_02_02_GO_BP_Cats_cumulus_corr_oocyte_at_fdr01.txt", append = FALSE, quote = FALSE, sep = "\t" ,row.names = FALSE)
+```
+
+# Test pwbc genes (significantly co-expressed with endometrium cells) for enrichment of biological processes.
+```{r}
+all_genes_pwbc<-data.frame( gene=rownames(pwbc_count_filtered),
+                       stringsAsFactors=FALSE )
+
+rownames(all_genes_pwbc)<-all_genes_pwbc$gene
+N_expressed_genes<-length(all_genes_pwbc$gene)
+
+gene.length_pwbc<-gene.length[gene.length$ensembl_gene_id %in% all_genes_pwbc$gene,]
+
+annotation.genelength.biomart_vector_pwbc<-gene.length_pwbc$transcript_length
+names(annotation.genelength.biomart_vector_pwbc)<-gene.length_pwbc$ensembl_gene_id
+
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes_pwbc),]
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)]
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes_pwbc),]
+
+test.genes_pwbc<-data.frame(a=unique(cor_pwbc_endometrium_[abs(cor_pwbc_endometrium_$correlation)>0.75]$gene_pwbc),
+                       stringsAsFactors=FALSE)
+all_genes_pwbc_numeric<-as.integer(all_genes_pwbc$gene %in%test.genes$a)
+names(all_genes_pwbc_numeric)<-all_genes_pwbc$gene
+
+N_sig_genes<-length(test.genes_pwbc$a)
+```
+```{r}
+set.seed(87175)
+
+pwf_pwbc<-nullp(all_genes_pwbc_numeric, 
+                bias.data=annotation.genelength.biomart_vector_pwbc,
+                plot.fit=FALSE ) 
+
+GO_BP_Cats_pwbc_corr_endometrium<-goseq(pwf_pwbc,
+                                        gene2cat=annotation.GO.BP.biomart,
+                                        method ="Sampling",
+                                        repcnt = 5000,
+                                        use_genes_without_cat=FALSE)
+
+GO_BP_Cats_pwbc_corr_endometrium<-GO_BP_Cats_pwbc_corr_endometrium[GO_BP_Cats_pwbc_corr_endometrium$numInCat>3,]
+GO_BP_Cats_pwbc_corr_endometrium$FWER<-p.adjust(GO_BP_Cats_pwbc_corr_endometrium$over_represented_pvalue, 
+                                                method ="holm")
+GO_BP_Cats_pwbc_corr_endometrium<-GO_BP_Cats_pwbc_corr_endometrium[with(GO_BP_Cats_pwbc_corr_endometrium, order(FWER,over_represented_pvalue,-numInCat)), ]
+GO_BP_Cats_pwbc_corr_endometrium$fold_enrichment<-(GO_BP_Cats_pwbc_corr_endometrium$numDEInCat/N_sig_genes)/(GO_BP_Cats_pwbc_corr_endometrium$numInCat/N_expressed_genes)
+                                                                                                    
+annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% test.genes_pwbc$a, ]
+
+GO_BP_Cats_pwbc_corr_endometrium<-merge(GO_BP_Cats_pwbc_corr_endometrium,
+                                        annotation.GO.BP.biomart_testgenes,
+                                        by.x="category",
+                                        by.y="go_id",
+                                        all.x=TRUE,
+                                        all.y=FALSE)
+
+GO_BP_Cats_pwbc_corr_endometrium<-merge(GO_BP_Cats_pwbc_corr_endometrium,
+                                        annotation.ensembl.symbol,
+                                        by.x="ensembl_gene_id",
+                                        by.y="ensembl_gene_id",
+                                        all=FALSE, 
+                                        all.x=TRUE,
+                                        all.y=FALSE)
+
+#GO_BP_Cats_pwbc_corr_endometrium<-GO_BP_Cats_pwbc_corr_endometrium[GO_BP_Cats_pwbc_corr_endometrium$FWER<0.1,]
+GO_BP_Cats_pwbc_corr_endometrium<-GO_BP_Cats_pwbc_corr_endometrium[with(GO_BP_Cats_pwbc_corr_endometrium, order(FWER,term)), ]
+GO_BP_Cats_pwbc_corr_endometrium$term<-factor(GO_BP_Cats_pwbc_corr_endometrium$term,
+                                        levels=c(rev(unique(GO_BP_Cats_pwbc_corr_endometrium$term))))
+```
+```{r}
+#write.table(GO_BP_Cats_pwbc_corr_endometrium, file= "/mnt/storage/lab_folder/shared_R_codes/fernando/BCB_oocyte_cumulus/results/2022_02_01_GO_BP_Cats_oocyte_corr_cumulus_at_fdr01.txt", append = FALSE, quote = FALSE, sep = "\t" ,row.names = FALSE)
+```
+
+```{r}
+GO_pwbc_plot<-ggplot(data=GO_BP_Cats_pwbc_corr_endometrium[1:10,],
+                       aes(x=term,
+                           y=-log10(FWER)))+
+  geom_point(aes(color=fold_enrichment))+
+  scale_y_continuous(name=bquote(-Log[10](FWER)), limits=c(1,2.5))+
+  coord_flip()+
+  scale_colour_gradient(name= "Fold enrichment",
+                        low = "#B8B8B8",
+                        high = "#080808",
+                        na.value = NA,
+                        limits = c(1, 16))+
+  scale_x_discrete(name=NULL)+
+  theme_classic() + 
+  ggtitle("PWBC - Biological processes") +
+  theme(
+    legend.direction = "horizontal",
+    legend.position = c(0.9,1),
+    legend.key.size = unit(0.5, 'mm'),
+    legend.text=element_text(size=5,margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")),
+    legend.title=element_text(size=5),
+    legend.background=element_blank(),
+    axis.text.x = element_text(color="black", size=10),
+    axis.text.y = element_text(color="black", size=8),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(vjust=1,margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), size = 10),
+    plot.margin=unit(c(1,5,0,0), units="mm"),
+    plot.title = element_text(size=8)) +
+guides(color=guide_legend(title.position="top",title.hjust =0.5))
+
+```
+```{r}
+GO_endometrium_plot<-ggplot(data=GO_BP_Cats_endometrium_corr_pwbc[1:10,],
+                            aes(x=term, y=-log10(FWER)))+
+  geom_point(aes(color=fold_enrichment))+
+  scale_y_continuous(name=bquote(-Log[10](FWER)), limits=c(0,2))+
+  coord_flip()+
+  scale_colour_gradient(name= "Fold enrichment",
+                        low = "#B8B8B8",
+                        high = "#080808",
+                        na.value = NA,
+                        limits = c(1, 15))+
+  scale_x_discrete(name=NULL)+
+  ggtitle("Endometrium - Biological processes") +
+  theme_classic() + 
+  theme(
+    legend.direction = "horizontal",
+    legend.position = c(0.9,0.96),
+    legend.key.size = unit(0.5, 'mm'),
+    legend.text=element_text(size=5,margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")),
+    legend.title=element_text(size=5),
+    legend.background=element_blank(),
+    axis.text.x = element_text(color="black", size=10),
+    axis.text.y = element_text(color="black", size=8),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(vjust=1,margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), size = 10),
+    plot.margin=unit(c(1,5,0,0), units="mm"),
+    plot.title = element_text(size=8)
+  ) + guides(color=guide_legend(title.position="top",title.hjust =0.5))
+```
+```{r}
+pwbc_endometrium_summary_plot <-cowplot::plot_grid(cowplot::plot_grid(cowplot::plot_grid(cor_pwbc_endometrium_histogram,
+                                        gene_connectivity_pwbc,
+                                        gene_connectivity_endometrium,
+                                        nrow =3,
+                                        ncol=1,
+                                        rel_heights=c(0.7,1,1),
+                                        labels = c("A","C","D"),
+                                        label_fontface = "plain",
+                                        label_size = 12 ),
+cowplot::plot_grid(plot_regr ,
+                   label_fontface = "plain",
+                   label_size = 12 , 
+                   labels = c("B")),
+ncol=2,
+rel_widths=c(0.5,1)),
+cowplot::plot_grid(cowplot::plot_grid(GO_endometrium_plot,
+                                      GO_pwbc_plot,
+                                      nrow =2,
+                                      align = 'v',
+                                      labels = c("E", "F"),
+                                      label_fontface = "plain",
+                                      label_size = 12),
+                                      NULL,
+                                      rel_widths=c(1,0.5)),
+nrow=2, 
+rel_heights=c(1,0.6))
+```
+```{r}
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pwbc_endometrium_summary_plot.png",
+       plot = pwbc_endometrium_summary_plot, 
+       width = 10, 
+       height = 10)
 ```
