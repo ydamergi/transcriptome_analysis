@@ -1,0 +1,1858 @@
+# Load libraries
+```{r}
+.libPaths("/usr/lib/R/site-library")
+library("edgeR", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DESeq2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DEsingle", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("biomaRt",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("goseq" ,quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("VennDiagram", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggpubr", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("Rtsne", quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("MEGENA",quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("DGCA", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('dplyr', quietly = TRUE,lib.loc="/usr/lib/R/site-library")
+library("ggplot2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggrepel", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("gridExtra",quietly = TRUE , lib.loc="/usr/lib/R/site-library")
+library("readr" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ggfortify" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("cowplot" , quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("tidyverse", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("WGCNA", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("reshape2", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("foreach", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("doParallel", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("bigmemory", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("gtools", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("data.table", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("flashClust", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("dendextend", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library('vegan', quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("ade4", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("gridGraphics", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("networkD3", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+library("readxl", quietly = TRUE, lib.loc="/usr/lib/R/site-library")
+```
+
+# Load the annotation of the genomne, transcripts , gene length , biological processes 
+
+
+```{r}
+
+annotation.ensembl.symbol <-read.table(file = "/home/yassine/Downloads/between_tissue/annotation.ensembl.symbol.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+
+gene.length<-read.table(file = "/home/yassine/Downloads/between_tissue/gene.length.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+
+annotation.GO.biomart<-read.table (file ="/home/yassine/Downloads/between_tissue/annotation.GO.biomart.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+```
+
+# Load the normalized filtred count data of the pituitary and the endometrium tissues 
+
+
+```{r}
+asinh_transf_CTF_normalized_pituitary_6<-read.table (file =                        "/home/yassine/Downloads/between_tissue/asinh_transf_CTF_normalized_pituitary_6.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+
+asinh_transf_CTF_normalized_pituitary_9<-read.table (file =                        "/home/yassine/Downloads/between_tissue/asinh_transf_CTF_normalized_pituitary_9.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+asinh_transf_CTF_normalized_pituitary_19<-read.table (file =                        "/home/yassine/Downloads/between_tissue/asinh_transf_CTF_normalized_pituitary_19.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+```
+
+
+```{r}
+asinh_transf_CTF_normalized_endometrium_6<-read.table (file =                        "/home/yassine/Downloads/between_tissue/asinh_transf_CTF_normalized_endometrium_6.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+
+asinh_transf_CTF_normalized_endometrium_9<-read.table (file =                        "/home/yassine/Downloads/between_tissue/asinh_transf_CTF_normalized_endometrium_9.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+
+asinh_transf_CTF_normalized_endometrium_19<-read.table (file =                        "/home/yassine/Downloads/between_tissue/asinh_transf_CTF_normalized_endometrium_19.txt",
+                                       header= TRUE, 
+                                       sep= "\t")
+```
+
+
+# Venn diagramd to see the overlapping genes between pituitary and the endometrium tissues for each time point 
+```{r}
+pituitary_endometrium_6_venn_diagram<-venn.diagram(
+  list("endometrium_6_months"=rownames(asinh_transf_CTF_normalized_endometrium_6),
+       "pituitary_6_months"=rownames(asinh_transf_CTF_normalized_pituitary_6)),
+                                        cex=1,
+                                        scaled= FALSE, 
+                                        filename = NULL,
+                                        output=TRUE,
+                                        col="transparent",
+                                        fill=c("red","blue"))
+
+pituitary_endometrium_9_venn_diagram<-venn.diagram(
+  list("endometrium_9_months"=rownames(asinh_transf_CTF_normalized_endometrium_9),
+       "pituitary_9_months"=rownames(asinh_transf_CTF_normalized_pituitary_9)),
+                                        cex=1,
+                                        scaled= FALSE, 
+                                        filename = NULL,
+                                        output=TRUE,
+                                        col="transparent",
+                                        fill=c("red","blue"))
+
+pituitary_endometrium_19_venn_diagram<-venn.diagram(
+  list("endometrium_19_months"=rownames(asinh_transf_CTF_normalized_endometrium_19),
+       "pituitary_19_months"=rownames(asinh_transf_CTF_normalized_pituitary_19)),
+                                        cex=1,
+                                        scaled= FALSE, 
+                                        filename = NULL,
+                                        output=TRUE,
+                                        col="transparent",
+                                        fill=c("red","blue"))
+```
+
+```{r}
+ggdraw(pituitary_endometrium_6_venn_diagram)
+```
+
+```{r}
+ggdraw(pituitary_endometrium_9_venn_diagram)
+
+```
+
+```{r}
+ggdraw(pituitary_endometrium_19_venn_diagram)
+
+```
+
+```{r}
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pituitary_endometrium_6_venn_diagram.png",
+       plot = pituitary_endometrium_6_venn_diagram, 
+       width = 10, 
+       height = 10)
+
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pituitary_endometrium_9_venn_diagram.png",
+       plot = pituitary_endometrium_9_venn_diagram, 
+       width = 10, 
+       height = 10)
+
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pituitary_endometrium_19_venn_diagram.png",
+       plot = pituitary_endometrium_19_venn_diagram, 
+       width = 10, 
+       height = 10)
+```
+
+# Use multiple cores 
+
+```{r}
+# Number of CPU cores to use
+num_cores <- 4
+# Register parallel cluster
+cl <- makeCluster(num_cores)
+registerDoParallel(cl)
+```
+
+# Plot the null distribution for the correlations between the two tissues 
+
+```{r}
+sample_a<-data.frame()
+random_a<-data.frame()
+random_b<-data.frame(matrix(NA, nrow = 135465312, ncol = 1))
+for (i in (1:5)){
+randomization<-sample(1:11,replace=F)
+
+random_a<-WGCNA::cor(t(asinh_transf_CTF_normalized_endometrium_6[,randomization]), 
+                     t(asinh_transf_CTF_normalized_pituitary_6),
+                     use = "pairwise.complete.obs",
+                     method="pearson")
+random_a<-reshape2::melt(random_a) 
+random_b<-cbind(random_b,random_a$value)
+sample_a<-rbind(sample_a,randomization)
+}
+
+random_b<-random_b[,-1]
+summary(random_b)
+
+plot_null_distribution_pituitary_endometrium_6 <-ggplot()+
+geom_histogram(aes(x=random_b[,1]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,2]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,3]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,4]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,5]), data=random_b, binwidth=0.01, alpha=0.2)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+title = "pituitary vs endometrium 6 month null distribution",
+panel.background = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_blank(),
+axis.line = element_line(color="black"),
+axis.text = element_text(color="black", size=10),
+axis.title.y=element_text(color="black", size=10,hjust=0),
+axis.title.x = element_text(color="black", size=10)
+)
+```
+```{r}
+sample_a<-data.frame()
+random_a<-data.frame()
+random_b<-data.frame(matrix(NA, nrow = 158503642, ncol = 1))
+for (i in (1:5)){
+randomization<-sample(1:11,replace=F)
+
+random_a<-WGCNA::cor(t(asinh_transf_CTF_normalized_endometrium_9[,randomization]), 
+                     t(asinh_transf_CTF_normalized_pituitary_9),
+                     use = "pairwise.complete.obs",
+                     method="pearson")
+random_a<-reshape2::melt(random_a) 
+random_b<-cbind(random_b,random_a$value)
+sample_a<-rbind(sample_a,randomization)
+}
+
+random_b<-random_b[,-1]
+summary(random_b)
+
+plot_null_distribution_pituitary_endometrium_9 <-ggplot()+
+geom_histogram(aes(x=random_b[,1]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,2]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,3]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,4]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,5]), data=random_b, binwidth=0.01, alpha=0.2)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+title = "pituitary vs endometrium 9 month null distribution",
+panel.background = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_blank(),
+axis.line = element_line(color="black"),
+axis.text = element_text(color="black", size=10),
+axis.title.y=element_text(color="black", size=10,hjust=0),
+axis.title.x = element_text(color="black", size=10)
+)
+```
+
+```{r}
+sample_a<-data.frame()
+random_a<-data.frame()
+random_b<-data.frame(matrix(NA, nrow = 147194908, ncol = 1))
+for (i in (1:5)){
+randomization<-sample(1:11,replace=F)
+
+random_a<-WGCNA::cor(t(asinh_transf_CTF_normalized_endometrium_19[,randomization]), 
+                     t(asinh_transf_CTF_normalized_pituitary_19),
+                     use = "pairwise.complete.obs",
+                     method="pearson")
+random_a<-reshape2::melt(random_a) 
+random_b<-cbind(random_b,random_a$value)
+sample_a<-rbind(sample_a,randomization)
+}
+
+random_b<-random_b[,-1]
+summary(random_b)
+
+plot_null_distribution_pituitary_endometrium_19 <-ggplot()+
+geom_histogram(aes(x=random_b[,1]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,2]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,3]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,4]), data=random_b, binwidth=0.01, alpha=0.2)+
+geom_histogram(aes(x=random_b[,5]), data=random_b, binwidth=0.01, alpha=0.2)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+title = "pituitary vs endometrium 19 month null distribution",
+panel.background = element_blank(),
+panel.grid.major = element_blank(),
+plot.background = element_blank(),
+axis.line = element_line(color="black"),
+axis.text = element_text(color="black", size=10),
+axis.title.y=element_text(color="black", size=10,hjust=0),
+axis.title.x = element_text(color="black", size=10)
+)
+```
+
+
+# Computing the correlation between the transformed filtred read counts of the pituitary and endometrium tissues 
+```{r}
+cor_pituitary_endometrium_6 <- corAndPvalue(t(asinh_transf_CTF_normalized_pituitary_6),
+                                             t(asinh_transf_CTF_normalized_endometrium_6),
+                                             use = "pairwise.complete.obs",
+                                             alternative="two.sided")
+
+cor_pituitary_endometrium_6_value<-reshape2::melt(cor_pituitary_endometrium_6$cor)
+cor_pituitary_endometrium_6_value<-as.data.table(cor_pituitary_endometrium_6_value)
+cor_pituitary_endometrium_6_p_value<-reshape2::melt(cor_pituitary_endometrium_6$p)
+cor_pituitary_endometrium_p_value<-as.data.table(cor_pituitary_endometrium_6_p_value)
+cor_pituitary_endometrium_6<-cbind(cor_pituitary_endometrium_6_value,cor_pituitary_endometrium_6_p_value)
+
+rm(cor_pituitary_endometrium_6_p_value,cor_pituitary_endometrium_6_value)
+
+cor_pituitary_endometrium_6_<-cor_pituitary_endometrium_6[,c(1,2,3,6)]
+colnames(cor_pituitary_endometrium_6_)<-c("gene_pituitary",
+                                            "gene_endometrium",
+                                            "correlation",
+                                            "p_value")
+
+cor_pituitary_endometrium_6_<-setDT(cor_pituitary_endometrium_6_[order(cor_pituitary_endometrium_6_$p_value),])
+```
+
+```{r}
+dim(cor_pituitary_endometrium_6_[abs(cor_pituitary_endometrium_6_$correlation)>0.9])
+
+```
+
+```{r}
+cor_pituitary_endometrium_9 <- corAndPvalue(t(asinh_transf_CTF_normalized_pituitary_9),
+                                             t(asinh_transf_CTF_normalized_endometrium_9),
+                                             use = "pairwise.complete.obs",
+                                             alternative="two.sided")
+
+cor_pituitary_endometrium_9_value<-reshape2::melt(cor_pituitary_endometrium_9$cor)
+cor_pituitary_endometrium_9_value<-as.data.table(cor_pituitary_endometrium_9_value)
+cor_pituitary_endometrium_9_p_value<-reshape2::melt(cor_pituitary_endometrium_9$p)
+cor_pituitary_endometrium_p_value<-as.data.table(cor_pituitary_endometrium_9_p_value)
+cor_pituitary_endometrium_9<-cbind(cor_pituitary_endometrium_9_value,cor_pituitary_endometrium_9_p_value)
+
+rm(cor_pituitary_endometrium_9_p_value,cor_pituitary_endometrium_9_value)
+
+cor_pituitary_endometrium_9_<-cor_pituitary_endometrium_9[,c(1,2,3,6)]
+colnames(cor_pituitary_endometrium_9_)<-c("gene_pituitary",
+                                            "gene_endometrium",
+                                            "correlation",
+                                            "p_value")
+
+cor_pituitary_endometrium_9_<-setDT(cor_pituitary_endometrium_9_[order(cor_pituitary_endometrium_9_$p_value),])
+```
+
+```{r}
+dim(cor_pituitary_endometrium_9_[abs(cor_pituitary_endometrium_9_$correlation)>0.9])
+```
+```{r}
+cor_pituitary_endometrium_19 <- corAndPvalue(t(asinh_transf_CTF_normalized_pituitary_19),
+                                             t(asinh_transf_CTF_normalized_endometrium_19),
+                                             use = "pairwise.complete.obs",
+                                             alternative="two.sided")
+
+cor_pituitary_endometrium_19_value<-reshape2::melt(cor_pituitary_endometrium_19$cor)
+cor_pituitary_endometrium_19_value<-as.data.table(cor_pituitary_endometrium_19_value)
+cor_pituitary_endometrium_19_p_value<-reshape2::melt(cor_pituitary_endometrium_19$p)
+cor_pituitary_endometrium_p_value<-as.data.table(cor_pituitary_endometrium_19_p_value)
+cor_pituitary_endometrium_19<-cbind(cor_pituitary_endometrium_19_value,cor_pituitary_endometrium_19_p_value)
+
+rm(cor_pituitary_endometrium_19_p_value,cor_pituitary_endometrium_19_value)
+
+cor_pituitary_endometrium_19_<-cor_pituitary_endometrium_19[,c(1,2,3,6)]
+colnames(cor_pituitary_endometrium_19_)<-c("gene_pituitary",
+                                            "gene_endometrium",
+                                            "correlation",
+                                            "p_value")
+
+cor_pituitary_endometrium_19_<-setDT(cor_pituitary_endometrium_19_[order(cor_pituitary_endometrium_19_$p_value),])
+```
+
+```{r}
+dim(cor_pituitary_endometrium_19_[abs(cor_pituitary_endometrium_19_$correlation)>0.9])
+
+```
+
+```{r}
+cor_pituitary_endometrium_6_0.9<-cor_pituitary_endometrium_6_[abs(cor_pituitary_endometrium_6_$correlation)>0.9]
+
+cor_pituitary_endometrium_6_0.9_annotated<-setDT(cor_pituitary_endometrium_6_0.9)
+
+cor_pituitary_endometrium_6_0.9_annotated$pituitary_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_6_0.9_annotated$gene_pituitary,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_6_0.9_annotated$endometrium_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_6_0.9_annotated$gene_endometrium,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+```
+
+
+```{r}
+cor_pituitary_endometrium_9_0.9<-cor_pituitary_endometrium_9_[abs(cor_pituitary_endometrium_9_$correlation)>0.9]
+
+cor_pituitary_endometrium_9_0.9_annotated<-setDT(cor_pituitary_endometrium_9_0.9)
+
+cor_pituitary_endometrium_9_0.9_annotated$pituitary_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_9_0.9_annotated$gene_pituitary,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_9_0.9_annotated$endometrium_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_9_0.9_annotated$gene_endometrium,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+```
+
+```{r}
+cor_pituitary_endometrium_19_0.9<-cor_pituitary_endometrium_19_[abs(cor_pituitary_endometrium_19_$correlation)>0.9]
+
+cor_pituitary_endometrium_19_0.9_annotated<-setDT(cor_pituitary_endometrium_19_0.9)
+
+cor_pituitary_endometrium_19_0.9_annotated$pituitary_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_19_0.9_annotated$gene_pituitary,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_19_0.9_annotated$endometrium_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_19_0.9_annotated$gene_endometrium,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+```
+
+```{r}
+write.table(cor_pituitary_endometrium_6_0.9_annotated,
+            file = "/home/yassine/Downloads/between_tissue/cor_pituitary_endometrium_6_0.9_annotated_2023_10_27.txt",
+            quote = TRUE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE) 
+
+write.table(cor_pituitary_endometrium_9_0.9_annotated,
+            file = "/home/yassine/Downloads/between_tissue/cor_pituitary_endometrium_9_0.9_annotated_2023_10_27.txt",
+            quote = TRUE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE) 
+
+write.table(cor_pituitary_endometrium_19_0.9_annotated,
+            file = "/home/yassine/Downloads/between_tissue/cor_pituitary_endometrium_19_0.9_annotated_2023_10_27.txt",
+            quote = TRUE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE) 
+```
+
+# Plot the histogram for all values of coefficient.
+```{r}
+cor_pituitary_endometrium_6_histogram<-ggplot()+
+geom_histogram(aes(x=correlation), 
+               data=cor_pituitary_endometrium_6_,
+               binwidth=0.01)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      plot.background = element_blank(),
+      axis.line = element_line(color="black"),
+      axis.text = element_text(color="black", size=10),
+      axis.title.y=element_text(color="black", size=10,hjust=0),
+      axis.title.x = element_text(color="black", size=10)
+)
+```
+
+
+```{r}
+cor_pituitary_endometrium_9_histogram<-ggplot()+
+geom_histogram(aes(x=correlation), 
+               data=cor_pituitary_endometrium_9_,
+               binwidth=0.01)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      plot.background = element_blank(),
+      axis.line = element_line(color="black"),
+      axis.text = element_text(color="black", size=10),
+      axis.title.y=element_text(color="black", size=10,hjust=0),
+      axis.title.x = element_text(color="black", size=10)
+)
+```
+
+
+```{r}
+cor_pituitary_endometrium_19_histogram<-ggplot()+
+geom_histogram(aes(x=correlation), 
+               data=cor_pituitary_endometrium_19_,
+               binwidth=0.01)+
+scale_y_continuous(name="Count")+
+scale_x_continuous(name="Correlation")+
+theme(
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      plot.background = element_blank(),
+      axis.line = element_line(color="black"),
+      axis.text = element_text(color="black", size=10),
+      axis.title.y=element_text(color="black", size=10,hjust=0),
+      axis.title.x = element_text(color="black", size=10)
+)
+```
+
+
+# Obtain gene connectivity.
+
+```{r}
+pituitary_6_gene_connectivity<- cor_pituitary_endometrium_6_0.9_annotated %>%
+  dplyr::count(pituitary_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+
+pituitary_6_gene_connectivity<-pituitary_6_gene_connectivity[pituitary_6_gene_connectivity$n > 4,]
+pituitary_6_gene_connectivity<-pituitary_6_gene_connectivity[!(pituitary_6_gene_connectivity$pituitary_gene_symbol ==""),]
+
+pituitary_6_gene_connectivity$pituitary_gene_symbol<-factor(
+  pituitary_6_gene_connectivity$pituitary_gene_symbol,
+  levels=c(pituitary_6_gene_connectivity$pituitary_gene_symbol))
+
+gene_connectivity_pituitary_6<-ggplot()+
+geom_col( aes(x=pituitary_gene_symbol, y=n), 
+          data=pituitary_6_gene_connectivity)+
+  scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+```
+
+```{r}
+gene_connectivity_pituitary_6
+```
+```{r}
+pituitary_9_gene_connectivity<- cor_pituitary_endometrium_9_0.9_annotated %>%
+  dplyr::count(pituitary_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+```
+
+
+```{r}
+pituitary_9_gene_connectivity<-pituitary_9_gene_connectivity[pituitary_9_gene_connectivity$n > 3,]
+pituitary_9_gene_connectivity<-pituitary_9_gene_connectivity[!(pituitary_9_gene_connectivity$pituitary_gene_symbol ==""),]
+
+pituitary_9_gene_connectivity$pituitary_gene_symbol<-factor(
+  pituitary_9_gene_connectivity$pituitary_gene_symbol,
+  levels=c(pituitary_9_gene_connectivity$pituitary_gene_symbol))
+
+gene_connectivity_pituitary_9<-ggplot()+
+geom_col( aes(x=pituitary_gene_symbol, y=n), 
+          data=pituitary_9_gene_connectivity)+
+  scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+```
+
+
+```{r}
+pituitary_19_gene_connectivity<- cor_pituitary_endometrium_19_0.9_annotated %>%
+  dplyr::count(pituitary_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+
+pituitary_19_gene_connectivity<-pituitary_19_gene_connectivity[pituitary_19_gene_connectivity$n > 4,]
+pituitary_19_gene_connectivity<-pituitary_19_gene_connectivity[!(pituitary_19_gene_connectivity$pituitary_gene_symbol ==""),]
+
+pituitary_19_gene_connectivity$pituitary_gene_symbol<-factor(
+  pituitary_19_gene_connectivity$pituitary_gene_symbol,
+  levels=c(pituitary_19_gene_connectivity$pituitary_gene_symbol))
+
+gene_connectivity_pituitary_19<-ggplot()+
+geom_col( aes(x=pituitary_gene_symbol, y=n), 
+          data=pituitary_19_gene_connectivity)+
+  scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+```
+
+
+```{r}
+endometrium_6_gene_connectivity<- cor_pituitary_endometrium_6_0.9_annotated %>%
+  dplyr::count(endometrium_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+
+endometrium_6_gene_connectivity<-endometrium_6_gene_connectivity[endometrium_6_gene_connectivity$n > 4,]
+endometrium_6_gene_connectivity<-endometrium_6_gene_connectivity[!(endometrium_6_gene_connectivity$endometrium_gene_symbol ==""),]
+
+endometrium_6_gene_connectivity$endometrium_gene_symbol<-factor(endometrium_6_gene_connectivity$endometrium_gene_symbol,
+                                                levels=c(endometrium_6_gene_connectivity$endometrium_gene_symbol))
+
+
+gene_connectivity_endometrium_6<-ggplot()+
+geom_col( aes(x=endometrium_gene_symbol, y=n), 
+          data=endometrium_6_gene_connectivity)+
+  scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+
+```
+
+```{r}
+endometrium_9_gene_connectivity<- cor_pituitary_endometrium_9_0.9_annotated %>%
+  dplyr::count(endometrium_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+
+endometrium_9_gene_connectivity<-endometrium_9_gene_connectivity[endometrium_9_gene_connectivity$n > 4,]
+endometrium_9_gene_connectivity<-endometrium_9_gene_connectivity[!(endometrium_9_gene_connectivity$endometrium_gene_symbol ==""),]
+
+endometrium_9_gene_connectivity$endometrium_gene_symbol<-factor(endometrium_9_gene_connectivity$endometrium_gene_symbol,
+                                                levels=c(endometrium_9_gene_connectivity$endometrium_gene_symbol))
+
+
+gene_connectivity_endometrium_9<-ggplot()+
+geom_col( aes(x=endometrium_gene_symbol, y=n), 
+          data=endometrium_9_gene_connectivity)+
+  scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+```
+
+```{r}
+endometrium_19_gene_connectivity<- cor_pituitary_endometrium_19_0.9_annotated %>%
+  dplyr::count(endometrium_gene_symbol) %>% 
+  dplyr::arrange(desc(n))
+
+endometrium_19_gene_connectivity<-endometrium_19_gene_connectivity[endometrium_19_gene_connectivity$n > 4,]
+endometrium_19_gene_connectivity<-endometrium_19_gene_connectivity[!(endometrium_19_gene_connectivity$endometrium_gene_symbol ==""),]
+
+endometrium_19_gene_connectivity$endometrium_gene_symbol<-factor(endometrium_19_gene_connectivity$endometrium_gene_symbol,
+                                                levels=c(endometrium_19_gene_connectivity$endometrium_gene_symbol))
+
+
+gene_connectivity_endometrium_19<-ggplot()+
+geom_col( aes(x=endometrium_gene_symbol, y=n), 
+          data=endometrium_19_gene_connectivity)+
+  scale_x_discrete(name=NULL)+
+  scale_y_continuous(name="Frequency")+
+  #scale_y_break(c(100, 600 ) )+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle=90, face="italic", size=7, vjust=0.5,hjust = 0),
+    axis.text.y = element_text(color="black", size=10),
+    axis.title.y=element_text(color="black", size=10,hjust=0),
+    axis.title.x=element_blank()
+  )
+```
+
+
+
+# Plot examples of co-expressed genes between pituitary and endometrium tissues
+```{r}
+cor_pituitary_endometrium_6_0.9_filtered <- cor_pituitary_endometrium_6_0.9
+
+cor_pituitary_endometrium_6_0.9_filtered$pituitary_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_6_0.9_filtered$gene_pituitary,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_6_0.9_filtered$endometrium_gene_symbol <-
+  annotation.ensembl.symbol$external_gene_name[match(
+    cor_pituitary_endometrium_6_0.9_filtered$gene_endometrium,
+    annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_6_0.9_filtered$angle<-NA
+cor_pituitary_endometrium_6_0.9_filtered$r.squared<-NA
+cor_pituitary_endometrium_6_0.9_filtered$rmse<-NA
+cor_pituitary_endometrium_6_0.9_filtered$fstatistic<-NA
+
+for (i in seq(dim(cor_pituitary_endometrium_6_0.9_filtered)[1]))
+{
+  gene_pituitary<-as.character(cor_pituitary_endometrium_6_0.9_filtered$gene_pituitary)[i]
+  gene_endometrium<-as.character(cor_pituitary_endometrium_6_0.9_filtered$gene_endometrium)[i]
+  
+  gene_symbol_pituitary<-as.character(cor_pituitary_endometrium_6_0.9_filtered$pituitary_gene_symbol)[i]
+  gene_symbol_endometrium<-as.character(cor_pituitary_endometrium_6_0.9_filtered$endometrium_gene_symbol)[i]
+  
+  expression_pituitary<-data.frame(expression_pituitary=t(pituitary_6_tpm_filtered[rownames(pituitary_6_tpm_filtered)==gene_pituitary,])[,1])
+  expression_endometrium<-data.frame(expression_endometrium=t(endometrium_6_tpm_filtered[rownames(endometrium_6_tpm_filtered)==gene_endometrium,])[,1])
+  
+  model_pituitary_endo <-lm(expression_pituitary$expression_pituitary ~ expression_endometrium$expression_endometrium)
+  cor_pituitary_endometrium_6_0.9_filtered$angle[i]<-unname(atan(coef(model_pituitary_endo)[2]) * (180 / pi))
+  cor_pituitary_endometrium_6_0.9_filtered$r.squared[i]<-summary(model_pituitary_endo)$adj.r.squared
+  cor_pituitary_endometrium_6_0.9_filtered$rmse[i]<-sqrt(mean(model_pituitary_endo$residuals^2))
+  cor_pituitary_endometrium_6_0.9_filtered$fstatistic[i]<-unname(summary(model_pituitary_endo)$fstatistic[1])
+}
+
+cor_pituitary_endometrium_6_0.9_filtered<-cor_pituitary_endometrium_6_0.9_filtered[cor_pituitary_endometrium_6_0.9_filtered$angle > 40 & cor_pituitary_endometrium_6_0.9_filtered$angle < 60,]
+
+cor_pituitary_endometrium_6_0.9_filtered<-cor_pituitary_endometrium_6_0.9_filtered[order(cor_pituitary_endometrium_6_0.9_filtered$rmse , decreasing = FALSE),]
+
+cor_pituitary_endometrium_6_0.9_filtered<-cor_pituitary_endometrium_6_0.9_filtered[cor_pituitary_endometrium_6_0.9_filtered$r.squared>0.3,]
+
+```
+
+```{r}
+cor_pituitary_endometrium_6_0.9_filtered
+```
+
+
+```{r}
+dataframegraph<-data.frame()
+
+for (i in c(1:10)){
+
+  gene_pituitary<-as.character(cor_pituitary_endometrium_6_0.9_filtered$gene_pituitary)[i]
+  gene_endometrium<-as.character(cor_pituitary_endometrium_6_0.9_filtered$gene_endometrium)[i]
+  
+  gene_symbol_pituitary<-as.character(cor_pituitary_endometrium_6_0.9_filtered$pituitary_gene_symbol)[i]
+  gene_symbol_endometrium<-as.character(cor_pituitary_endometrium_6_0.9_filtered$endometrium_gene_symbol)[i]
+  
+  expression_pituitary<-data.frame(expression_pituitary=t(pituitary_6_tpm_filtered[rownames(pituitary_6_tpm_filtered)==gene_pituitary,])[,1])
+  
+  expression_endometrium<-data.frame( expression_endometrium=t(endometrium_6_tpm_filtered[rownames(endometrium_6_tpm_filtered)==gene_endometrium,])[,1])
+  
+  graph<-i
+  
+  dataframegraph<-rbind(data.frame(gene_pituitary,
+                                   gene_endometrium,
+                                   gene_symbol_pituitary,
+                                   gene_symbol_endometrium,
+                                   expression_pituitary,
+                                   expression_endometrium,
+                                   graph),
+                        dataframegraph)
+
+}
+plots<-list()
+for (i in c(1:10)){
+  plots[[i]]<- ggplot(dataframegraph[dataframegraph$graph==i,],
+                      aes(x=expression_pituitary,
+                          y= expression_endometrium))+
+  geom_point()+
+  geom_smooth(method='lm', formula= y~x)+
+  scale_x_continuous(name=dataframegraph[dataframegraph$graph==i,]$gene_symbol_pituitary[1])+
+  scale_y_continuous(name=dataframegraph[dataframegraph$graph==i,]$gene_symbol_endometrium[1])+
+  theme_classic(base_size=12)+
+  theme(
+  axis.title=element_text(face="italic", size=10),
+  axis.text=element_text(size=10, color="black"),
+  )
+
+}
+
+x.grob <- textGrob("pituitary",
+                   gp=gpar(fontface="plain", col="black", fontsize=10))
+y.grob <- textGrob("endometrium",
+                   gp=gpar(fontface="plain", col="black", fontsize=10),
+                   rot=90)
+```
+
+
+```{r}
+plot_regr_6<-plot_grid( grid.arrange(arrangeGrob(plot_grid(plotlist=plots, nrow=2),
+                                               left = y.grob,
+                                               bottom = x.grob)))
+```
+
+
+
+```{r}
+cor_pituitary_endometrium_9_0.9_filtered <- cor_pituitary_endometrium_9_0.9
+
+cor_pituitary_endometrium_9_0.9_filtered$pituitary_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_9_0.9_filtered$gene_pituitary,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_9_0.9_filtered$endometrium_gene_symbol <-
+  annotation.ensembl.symbol$external_gene_name[match(
+    cor_pituitary_endometrium_9_0.9_filtered$gene_endometrium,
+    annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_9_0.9_filtered$angle<-NA
+cor_pituitary_endometrium_9_0.9_filtered$r.squared<-NA
+cor_pituitary_endometrium_9_0.9_filtered$rmse<-NA
+cor_pituitary_endometrium_9_0.9_filtered$fstatistic<-NA
+
+for (i in seq(dim(cor_pituitary_endometrium_9_0.9_filtered)[1]))
+{
+  gene_pituitary<-as.character(cor_pituitary_endometrium_9_0.9_filtered$gene_pituitary)[i]
+  gene_endometrium<-as.character(cor_pituitary_endometrium_9_0.9_filtered$gene_endometrium)[i]
+  
+  gene_symbol_pituitary<-as.character(cor_pituitary_endometrium_9_0.9_filtered$pituitary_gene_symbol)[i]
+  gene_symbol_endometrium<-as.character(cor_pituitary_endometrium_9_0.9_filtered$endometrium_gene_symbol)[i]
+  
+  expression_pituitary<-data.frame(expression_pituitary=t(pituitary_9_tpm_filtered[rownames(pituitary_9_tpm_filtered)==gene_pituitary,])[,1])
+  expression_endometrium<-data.frame(expression_endometrium=t(endometrium_9_tpm_filtered[rownames(endometrium_9_tpm_filtered)==gene_endometrium,])[,1])
+  
+  model_pituitary_endo <-lm(expression_pituitary$expression_pituitary ~ expression_endometrium$expression_endometrium)
+  cor_pituitary_endometrium_9_0.9_filtered$angle[i]<-unname(atan(coef(model_pituitary_endo)[2]) * (180 / pi))
+  cor_pituitary_endometrium_9_0.9_filtered$r.squared[i]<-summary(model_pituitary_endo)$adj.r.squared
+  cor_pituitary_endometrium_9_0.9_filtered$rmse[i]<-sqrt(mean(model_pituitary_endo$residuals^2))
+  cor_pituitary_endometrium_9_0.9_filtered$fstatistic[i]<-unname(summary(model_pituitary_endo)$fstatistic[1])
+}
+
+cor_pituitary_endometrium_9_0.9_filtered<-cor_pituitary_endometrium_9_0.9_filtered[cor_pituitary_endometrium_9_0.9_filtered$angle > 0 & cor_pituitary_endometrium_9_0.9_filtered$angle < 90,]
+
+cor_pituitary_endometrium_9_0.9_filtered<-cor_pituitary_endometrium_9_0.9_filtered[order(cor_pituitary_endometrium_9_0.9_filtered$rmse , decreasing = FALSE),]
+
+cor_pituitary_endometrium_9_0.9_filtered<-cor_pituitary_endometrium_9_0.9_filtered[cor_pituitary_endometrium_9_0.9_filtered$r.squared>0.3,]
+
+```
+
+```{r}
+cor_pituitary_endometrium_9_0.9_filtered
+```
+
+
+```{r}
+dataframegraph<-data.frame()
+
+for (i in c(1:9)){
+
+  gene_pituitary<-as.character(cor_pituitary_endometrium_9_0.9_filtered$gene_pituitary)[i]
+  gene_endometrium<-as.character(cor_pituitary_endometrium_9_0.9_filtered$gene_endometrium)[i]
+  
+  gene_symbol_pituitary<-as.character(cor_pituitary_endometrium_9_0.9_filtered$pituitary_gene_symbol)[i]
+  gene_symbol_endometrium<-as.character(cor_pituitary_endometrium_9_0.9_filtered$endometrium_gene_symbol)[i]
+  
+  expression_pituitary<-data.frame(expression_pituitary=t(pituitary_9_tpm_filtered[rownames(pituitary_9_tpm_filtered)==gene_pituitary,])[,1])
+  
+  expression_endometrium<-data.frame( expression_endometrium=t(endometrium_9_tpm_filtered[rownames(endometrium_9_tpm_filtered)==gene_endometrium,])[,1])
+  
+  graph<-i
+  
+  dataframegraph<-rbind(data.frame(gene_pituitary,
+                                   gene_endometrium,
+                                   gene_symbol_pituitary,
+                                   gene_symbol_endometrium,
+                                   expression_pituitary,
+                                   expression_endometrium,
+                                   graph),
+                        dataframegraph)
+
+}
+plots<-list()
+for (i in c(1:9)){
+  plots[[i]]<- ggplot(dataframegraph[dataframegraph$graph==i,],
+                      aes(x=expression_pituitary,
+                          y= expression_endometrium))+
+  geom_point()+
+  geom_smooth(method='lm', formula= y~x)+
+  scale_x_continuous(name=dataframegraph[dataframegraph$graph==i,]$gene_symbol_pituitary[1])+
+  scale_y_continuous(name=dataframegraph[dataframegraph$graph==i,]$gene_symbol_endometrium[1])+
+  theme_classic(base_size=12)+
+  theme(
+  axis.title=element_text(face="italic", size=10),
+  axis.text=element_text(size=10, color="black"),
+  )
+
+}
+
+x.grob <- textGrob("pituitary",
+                   gp=gpar(fontface="plain", col="black", fontsize=10))
+y.grob <- textGrob("endometrium",
+                   gp=gpar(fontface="plain", col="black", fontsize=10),
+                   rot=90)
+```
+
+
+```{r}
+plot_regr_9<-plot_grid( grid.arrange(arrangeGrob(plot_grid(plotlist=plots, nrow=3),
+                                               left = y.grob,
+                                               bottom = x.grob)))
+```
+
+```{r}
+cor_pituitary_endometrium_19_0.9_filtered <- cor_pituitary_endometrium_19_0.9
+
+cor_pituitary_endometrium_19_0.9_filtered$pituitary_gene_symbol <- annotation.ensembl.symbol$external_gene_name[match(
+  cor_pituitary_endometrium_19_0.9_filtered$gene_pituitary,
+  annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_19_0.9_filtered$endometrium_gene_symbol <-
+  annotation.ensembl.symbol$external_gene_name[match(
+    cor_pituitary_endometrium_19_0.9_filtered$gene_endometrium,
+    annotation.ensembl.symbol$ensembl_gene_id)]
+
+cor_pituitary_endometrium_19_0.9_filtered$angle<-NA
+cor_pituitary_endometrium_19_0.9_filtered$r.squared<-NA
+cor_pituitary_endometrium_19_0.9_filtered$rmse<-NA
+cor_pituitary_endometrium_19_0.9_filtered$fstatistic<-NA
+
+for (i in seq(dim(cor_pituitary_endometrium_19_0.9_filtered)[1]))
+{
+  gene_pituitary<-as.character(cor_pituitary_endometrium_19_0.9_filtered$gene_pituitary)[i]
+  gene_endometrium<-as.character(cor_pituitary_endometrium_19_0.9_filtered$gene_endometrium)[i]
+  
+  gene_symbol_pituitary<-as.character(cor_pituitary_endometrium_19_0.9_filtered$pituitary_gene_symbol)[i]
+  gene_symbol_endometrium<-as.character(cor_pituitary_endometrium_19_0.9_filtered$endometrium_gene_symbol)[i]
+  
+  expression_pituitary<-data.frame(expression_pituitary=t(pituitary_19_tpm_filtered[rownames(pituitary_19_tpm_filtered)==gene_pituitary,])[,1])
+  expression_endometrium<-data.frame(expression_endometrium=t(endometrium_19_tpm_filtered[rownames(endometrium_19_tpm_filtered)==gene_endometrium,])[,1])
+  
+  model_pituitary_endo <-lm(expression_pituitary$expression_pituitary ~ expression_endometrium$expression_endometrium)
+  cor_pituitary_endometrium_19_0.9_filtered$angle[i]<-unname(atan(coef(model_pituitary_endo)[2]) * (180 / pi))
+  cor_pituitary_endometrium_19_0.9_filtered$r.squared[i]<-summary(model_pituitary_endo)$adj.r.squared
+  cor_pituitary_endometrium_19_0.9_filtered$rmse[i]<-sqrt(mean(model_pituitary_endo$residuals^2))
+  cor_pituitary_endometrium_19_0.9_filtered$fstatistic[i]<-unname(summary(model_pituitary_endo)$fstatistic[1])
+}
+
+cor_pituitary_endometrium_19_0.9_filtered<-cor_pituitary_endometrium_19_0.9_filtered[cor_pituitary_endometrium_19_0.9_filtered$angle > 40 & cor_pituitary_endometrium_19_0.9_filtered$angle < 60,]
+
+cor_pituitary_endometrium_19_0.9_filtered<-cor_pituitary_endometrium_19_0.9_filtered[order(cor_pituitary_endometrium_19_0.9_filtered$rmse , decreasing = FALSE),]
+
+cor_pituitary_endometrium_19_0.9_filtered<-cor_pituitary_endometrium_19_0.9_filtered[cor_pituitary_endometrium_19_0.9_filtered$r.squared>0.3,]
+
+```
+
+```{r}
+cor_pituitary_endometrium_19_0.9_filtered
+```
+
+
+```{r}
+dataframegraph<-data.frame()
+
+for (i in c(1:10)){
+
+  gene_pituitary<-as.character(cor_pituitary_endometrium_19_0.9_filtered$gene_pituitary)[i]
+  gene_endometrium<-as.character(cor_pituitary_endometrium_19_0.9_filtered$gene_endometrium)[i]
+  
+  gene_symbol_pituitary<-as.character(cor_pituitary_endometrium_19_0.9_filtered$pituitary_gene_symbol)[i]
+  gene_symbol_endometrium<-as.character(cor_pituitary_endometrium_19_0.9_filtered$endometrium_gene_symbol)[i]
+  
+  expression_pituitary<-data.frame(expression_pituitary=t(pituitary_19_tpm_filtered[rownames(pituitary_19_tpm_filtered)==gene_pituitary,])[,1])
+  
+  expression_endometrium<-data.frame( expression_endometrium=t(endometrium_19_tpm_filtered[rownames(endometrium_19_tpm_filtered)==gene_endometrium,])[,1])
+  
+  graph<-i
+  
+  dataframegraph<-rbind(data.frame(gene_pituitary,
+                                   gene_endometrium,
+                                   gene_symbol_pituitary,
+                                   gene_symbol_endometrium,
+                                   expression_pituitary,
+                                   expression_endometrium,
+                                   graph),
+                        dataframegraph)
+
+}
+plots<-list()
+for (i in c(1:10)){
+  plots[[i]]<- ggplot(dataframegraph[dataframegraph$graph==i,],
+                      aes(x=expression_pituitary,
+                          y= expression_endometrium))+
+  geom_point()+
+  geom_smooth(method='lm', formula= y~x)+
+  scale_x_continuous(name=dataframegraph[dataframegraph$graph==i,]$gene_symbol_pituitary[1])+
+  scale_y_continuous(name=dataframegraph[dataframegraph$graph==i,]$gene_symbol_endometrium[1])+
+  theme_classic(base_size=12)+
+  theme(
+  axis.title=element_text(face="italic", size=10),
+  axis.text=element_text(size=10, color="black"),
+  )
+
+}
+
+x.grob <- textGrob("pituitary",
+                   gp=gpar(fontface="plain", col="black", fontsize=10))
+y.grob <- textGrob("endometrium",
+                   gp=gpar(fontface="plain", col="black", fontsize=10),
+                   rot=90)
+```
+
+
+```{r}
+plot_regr_19<-plot_grid( grid.arrange(arrangeGrob(plot_grid(plotlist=plots, nrow=2),
+                                               left = y.grob,
+                                               bottom = x.grob)))
+```
+
+# Test endometrium genes (significantly co-expressed with pituitary) for enrichment of biological processes.
+
+```{r}
+all_genes_endometrium_6 <-data.frame( gene=rownames(endometrium_6_count_filtered),
+                                    stringsAsFactors=FALSE )
+
+rownames(all_genes_endometrium_6)<-all_genes_endometrium_6$gene
+N_expressed_genes<-length(all_genes_endometrium_6$gene)
+
+gene.length_endometrium_6 <-gene.length[gene.length$ensembl_gene_id %in% all_genes_endometrium_6$gene,]
+
+annotation.genelength.biomart_vector_endometrium_6 <-gene.length_endometrium_6$transcript_length
+names(annotation.genelength.biomart_vector_endometrium_6)<-gene.length_endometrium_6$ensembl_gene_id
+
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes_endometrium_6),]
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)]
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes_endometrium_6),]
+
+```
+
+```{r}
+test.genes_endometrium_6 <-data.frame(
+  a=unique(cor_pituitary_endometrium_6_[abs(cor_pituitary_endometrium_6_$correlation)>0.9]$gene_endometrium), 
+  stringsAsFactors=FALSE)
+
+all_genes_endometrium_6_numeric<-as.integer(all_genes_endometrium_6$gene %in% test.genes_endometrium_6$a)
+names(all_genes_endometrium_6_numeric)<-all_genes_endometrium_6$gene
+N_sig_genes<-length(test.genes_endometrium_6$a)
+
+```
+
+```{r}
+set.seed(88972)
+
+pwf_endometrium_6 <- nullp(all_genes_endometrium_6_numeric,
+                            bias.data=annotation.genelength.biomart_vector_endometrium_6,
+                            plot.fit=FALSE )
+```
+
+
+```{r}
+GO_BP_Cats_endometrium_corr_pituitary_6 <- goseq(pwf_endometrium_6,
+                                                  gene2cat=annotation.GO.BP.biomart,
+                                                  method ="Sampling",
+                                                  repcnt = 5000,
+                                                  use_genes_without_cat=FALSE)
+```
+
+```{r}
+write.table(GO_BP_Cats_endometrium_corr_pituitary_6,
+            file = "/home/yassine/Downloads/between_tissue/GO_BP_Cats_endometrium_corr_pituitary_6.txt",
+            quote = TRUE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE) 
+```
+
+```{r}
+
+GO_BP_Cats_endometrium_corr_pituitary_6<-GO_BP_Cats_endometrium_corr_pituitary_6[GO_BP_Cats_endometrium_corr_pituitary_6$numInCat>3,] 
+
+GO_BP_Cats_endometrium_corr_pituitary_6$FWER<-p.adjust(
+  GO_BP_Cats_endometrium_corr_pituitary_6$over_represented_pvalue,
+  method ="holm")
+
+GO_BP_Cats_endometrium_corr_pituitary_6<-GO_BP_Cats_endometrium_corr_pituitary_6[with(GO_BP_Cats_endometrium_corr_pituitary_6,order(FWER,over_represented_pvalue,-numInCat)), ]
+
+GO_BP_Cats_endometrium_corr_pituitary_6$fold_enrichment<-(GO_BP_Cats_endometrium_corr_pituitary_6$numDEInCat/N_sig_genes)/(GO_BP_Cats_endometrium_corr_pituitary_6$numInCat/N_expressed_genes)
+```
+
+
+
+```{r}
+annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% test.genes_endometrium_6$a, ]
+
+GO_BP_Cats_endometrium_corr_pituitary_6<-merge(GO_BP_Cats_endometrium_corr_pituitary_6,
+                                                annotation.GO.BP.biomart_testgenes,
+                                                by.x="category",
+                                                by.y="go_id",
+                                                all.x=FALSE,
+                                                all.y=TRUE)
+
+GO_BP_Cats_endometrium_corr_pituitary_6<-merge(GO_BP_Cats_endometrium_corr_pituitary_6,
+                                                annotation.ensembl.symbol,
+                                                by.x="ensembl_gene_id",
+                                                by.y="ensembl_gene_id", 
+                                                all=FALSE, 
+                                                all.x=TRUE,
+                                                all.y=FALSE)
+```
+
+```{r}
+GO_BP_Cats_endometrium_corr_pituitary_6 <- arrange(GO_BP_Cats_endometrium_corr_pituitary_6, desc(fold_enrichment))
+
+```
+
+```{r}
+
+GO_BP_Cats_endometrium_corr_pituitary_6$term<-factor(
+  GO_BP_Cats_endometrium_corr_pituitary_6$term,
+  levels=c(rev(unique(GO_BP_Cats_endometrium_corr_pituitary_6$term))))
+```
+
+
+
+# Test pituitary genes (significantly co-expressed with endometrium cells) for enrichment of biological processes.
+
+```{r}
+all_genes_pituitary_6 <-data.frame( gene=rownames(pituitary_6_count_filtered),
+                                    stringsAsFactors=FALSE )
+
+rownames(all_genes_pituitary_6) <- all_genes_pituitary_6$gene
+N_expressed_genes <- length(all_genes_pituitary_6$gene)
+
+gene.length_pituitary_6 <- gene.length[gene.length$ensembl_gene_id %in% all_genes_pituitary_6$gene,]
+
+annotation.genelength.biomart_vector_pituitary_6 <- gene.length_pituitary_6$transcript_length
+names(annotation.genelength.biomart_vector_pituitary_6) <- gene.length_pituitary_6$ensembl_gene_id
+
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes_pituitary_6),]
+
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)]
+
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes_pituitary_6),]
+```
+
+
+```{r}
+test.genes_pituitary_6 <-data.frame(
+  a=unique(cor_pituitary_endometrium_6_[abs(cor_pituitary_endometrium_6_$correlation)>0.9]$gene_pituitary),
+  stringsAsFactors=FALSE)
+
+all_genes_pituitary_6_numeric<-as.integer(all_genes_pituitary_6$gene %in% test.genes_pituitary_6$a)
+names(all_genes_pituitary_6_numeric)<-all_genes_pituitary_6$gene
+
+N_sig_genes<-length(test.genes_pituitary_6$a)
+```
+
+
+
+```{r}
+set.seed(87175)
+
+pwf_pituitary_6 <-nullp(all_genes_pituitary_6_numeric,
+                        bias.data=annotation.genelength.biomart_vector_pituitary_6,
+                        plot.fit=FALSE )
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_6 <-goseq(pwf_pituitary_6,
+                                                 gene2cat=annotation.GO.BP.biomart,
+                                                 method ="Sampling",
+                                                 repcnt = 5000,
+                                                 use_genes_without_cat=FALSE)
+```
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_6<-GO_BP_Cats_pituitary_corr_endometrium_6[GO_BP_Cats_pituitary_corr_endometrium_6$numInCat>3,]
+
+GO_BP_Cats_pituitary_corr_endometrium_6$FWER<-p.adjust(
+  GO_BP_Cats_pituitary_corr_endometrium_6$over_represented_pvalue, 
+  method ="holm")
+
+GO_BP_Cats_pituitary_corr_endometrium_6<-GO_BP_Cats_pituitary_corr_endometrium_6[
+  with(GO_BP_Cats_pituitary_corr_endometrium_6,
+       order(FWER,over_represented_pvalue,-numInCat)), ]
+
+GO_BP_Cats_pituitary_corr_endometrium_6$fold_enrichment<-(GO_BP_Cats_pituitary_corr_endometrium_6$numDEInCat/N_sig_genes)/(GO_BP_Cats_pituitary_corr_endometrium_6$numInCat/N_expressed_genes)
+                                                                                                
+annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% test.genes_pituitary_6$a, ]
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_6<-merge(GO_BP_Cats_pituitary_corr_endometrium_6,
+                                              annotation.GO.BP.biomart_testgenes,
+                                              by.x="category",
+                                              by.y="go_id",
+                                              all.x=TRUE,
+                                              all.y=FALSE)
+
+GO_BP_Cats_pituitary_corr_endometrium_6<-merge(GO_BP_Cats_pituitary_corr_endometrium_6,
+                                              annotation.ensembl.symbol,
+                                              by.x="ensembl_gene_id",
+                                              by.y="ensembl_gene_id",
+                                              all=FALSE, 
+                                              all.x=TRUE,
+                                              all.y=FALSE)
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_6 <- arrange(GO_BP_Cats_pituitary_corr_endometrium_6, desc(fold_enrichment))
+
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_6$term<-factor(
+  GO_BP_Cats_pituitary_corr_endometrium_6$term,
+  levels=c(rev(unique(GO_BP_Cats_pituitary_corr_endometrium_6$term))))
+```
+
+
+```{r}
+GO_pituitary_6_plot <- ggplot(data = GO_BP_Cats_pituitary_corr_endometrium_6[1:10, ],
+                             aes(x = fold_enrichment,
+                                y = term)) +
+  geom_point() +
+  coord_cartesian() +
+  scale_colour_gradient(name = "Fold enrichment",
+                        low = "#B8B8B8",
+                        high = "#080808",
+                        na.value = NA) +
+  scale_x_continuous(name = "Fold enrichment") +
+  scale_y_discrete(name = "Biological process") +
+  theme_classic() +
+  ggtitle("pituitary 6 months - Biological processes") +
+  theme(
+    legend.direction = "horizontal",
+    legend.position = c(0.9, 1),
+    legend.key.size = unit(0.5, "mm"),
+    legend.text = element_text(size = 5, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")),
+    legend.title = element_text(size = 5),
+    legend.background = element_blank(),
+    axis.text.x = element_text(color = "black", size = 10),
+    axis.text.y = element_text(color = "black", size = 8),
+    axis.title.y = element_text(vjust = 1, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), size = 10),
+    plot.margin = unit(c(1, 5, 0, 0), units = "mm"),
+    plot.title = element_text(size = 8)
+  ) +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5))
+
+```
+
+
+```{r}
+GO_endometrium_6_plot <- ggplot(data = GO_BP_Cats_endometrium_corr_pituitary_6[1:10, ],
+                             aes(x = fold_enrichment,
+                                y = term)) +
+  geom_point() +
+  coord_cartesian() +
+  scale_colour_gradient(name = "Fold enrichment",
+                        low = "#B8B8B8",
+                        high = "#080808",
+                        na.value = NA) +
+  scale_x_continuous(name = "Fold enrichment") +
+  scale_y_discrete(name = "Biological process") +
+  theme_classic() +
+  ggtitle("endometrium 6 months - Biological processes") +
+  theme(
+    legend.direction = "horizontal",
+    legend.position = c(0.9, 1),
+    legend.key.size = unit(0.5, "mm"),
+    legend.text = element_text(size = 5, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")),
+    legend.title = element_text(size = 5),
+    legend.background = element_blank(),
+    axis.text.x = element_text(color = "black", size = 10),
+    axis.text.y = element_text(color = "black", size = 8),
+    axis.title.y = element_text(vjust = 1, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), size = 10),
+    plot.margin = unit(c(1, 5, 0, 0), units = "mm"),
+    plot.title = element_text(size = 8)
+  ) +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5))
+```
+
+
+```{r}
+pituitary_endometrium_6_summary_plot<-cowplot::plot_grid(
+  cowplot::plot_grid(cowplot::plot_grid(cor_pituitary_endometrium_6_histogram, gene_connectivity_endometrium_6, gene_connectivity_pituitary_6, nrow =3, ncol=1, rel_heights=c(0.7,1,1),labels = c("A", "C","D"), label_fontface = "plain", label_size = 12 ),cowplot::plot_grid(plot_regr_6 , label_fontface = "plain", label_size = 12 , labels = c("B")) ,ncol=2,rel_widths=c(0.5,1)),
+  cowplot::plot_grid(cowplot::plot_grid(GO_endometrium_6_plot,GO_pituitary_6_plot, nrow =2, align = 'v',labels = c("E", "F"), label_fontface = "plain", label_size = 12), NULL, rel_widths=c(1,0.5)),
+  nrow=2, rel_heights=c(1,0.6))
+```
+
+```{r}
+pituitary_endometrium_6_summary_plot
+```
+
+
+```{r}
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pituitary_endometrium_6_summary_plot.png",
+       plot = pituitary_endometrium_6_summary_plot, 
+       width = 10, 
+       height = 10)
+```
+
+
+
+# Test endometrium genes (significantly co-expressed with pituitary) for enrichment of biological processes.
+
+```{r}
+all_genes_endometrium_9 <-data.frame( gene=rownames(endometrium_9_count_filtered),
+                                    stringsAsFactors=FALSE )
+
+rownames(all_genes_endometrium_9)<-all_genes_endometrium_9$gene
+N_expressed_genes<-length(all_genes_endometrium_9$gene)
+
+gene.length_endometrium_9 <-gene.length[gene.length$ensembl_gene_id %in% all_genes_endometrium_9$gene,]
+
+annotation.genelength.biomart_vector_endometrium_9 <-gene.length_endometrium_9$transcript_length
+names(annotation.genelength.biomart_vector_endometrium_9)<-gene.length_endometrium_9$ensembl_gene_id
+
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes_endometrium_9),]
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)]
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes_endometrium_9),]
+
+```
+
+```{r}
+test.genes_endometrium_9 <-data.frame(
+  a=unique(cor_pituitary_endometrium_9_[abs(cor_pituitary_endometrium_9_$correlation)>0.9]$gene_endometrium), 
+  stringsAsFactors=FALSE)
+
+all_genes_endometrium_9_numeric<-as.integer(all_genes_endometrium_9$gene %in% test.genes_endometrium_9$a)
+names(all_genes_endometrium_9_numeric)<-all_genes_endometrium_9$gene
+N_sig_genes<-length(test.genes_endometrium_9$a)
+
+```
+
+```{r}
+set.seed(88972)
+
+pwf_endometrium_9 <- nullp(all_genes_endometrium_9_numeric,
+                            bias.data=annotation.genelength.biomart_vector_endometrium_9,
+                            plot.fit=FALSE )
+```
+
+
+```{r}
+GO_BP_Cats_endometrium_corr_pituitary_9 <- goseq(pwf_endometrium_9,
+                                                  gene2cat=annotation.GO.BP.biomart,
+                                                  method ="Sampling",
+                                                  repcnt = 5000,
+                                                  use_genes_without_cat=FALSE)
+```
+
+```{r}
+write.table(GO_BP_Cats_endometrium_corr_pituitary_9,
+            file = "/home/yassine/Downloads/between_tissue/GO_BP_Cats_endometrium_corr_pituitary_9.txt",
+            quote = TRUE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE) 
+```
+
+```{r}
+
+GO_BP_Cats_endometrium_corr_pituitary_9<-GO_BP_Cats_endometrium_corr_pituitary_9[GO_BP_Cats_endometrium_corr_pituitary_9$numInCat>3,] 
+
+GO_BP_Cats_endometrium_corr_pituitary_9$FWER<-p.adjust(
+  GO_BP_Cats_endometrium_corr_pituitary_9$over_represented_pvalue,
+  method ="holm")
+
+GO_BP_Cats_endometrium_corr_pituitary_9<-GO_BP_Cats_endometrium_corr_pituitary_9[with(GO_BP_Cats_endometrium_corr_pituitary_9,order(FWER,over_represented_pvalue,-numInCat)), ]
+
+GO_BP_Cats_endometrium_corr_pituitary_9$fold_enrichment<-(GO_BP_Cats_endometrium_corr_pituitary_9$numDEInCat/N_sig_genes)/(GO_BP_Cats_endometrium_corr_pituitary_9$numInCat/N_expressed_genes)
+```
+
+
+
+```{r}
+annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% test.genes_endometrium_9$a, ]
+
+GO_BP_Cats_endometrium_corr_pituitary_9<-merge(GO_BP_Cats_endometrium_corr_pituitary_9,
+                                                annotation.GO.BP.biomart_testgenes,
+                                                by.x="category",
+                                                by.y="go_id",
+                                                all.x=FALSE,
+                                                all.y=TRUE)
+
+GO_BP_Cats_endometrium_corr_pituitary_9<-merge(GO_BP_Cats_endometrium_corr_pituitary_9,
+                                                annotation.ensembl.symbol,
+                                                by.x="ensembl_gene_id",
+                                                by.y="ensembl_gene_id", 
+                                                all=FALSE, 
+                                                all.x=TRUE,
+                                                all.y=FALSE)
+```
+
+
+```{r}
+GO_BP_Cats_endometrium_corr_pituitary_9 <- arrange(GO_BP_Cats_endometrium_corr_pituitary_9, desc(fold_enrichment))
+```
+
+
+```{r}
+
+GO_BP_Cats_endometrium_corr_pituitary_9$term<-factor(
+  GO_BP_Cats_endometrium_corr_pituitary_9$term,
+  levels=c(rev(unique(GO_BP_Cats_endometrium_corr_pituitary_9$term))))
+```
+
+
+# Test pituitary genes (significantly co-expressed with endometrium cells) for enrichment of biological processes.
+
+```{r}
+all_genes_pituitary_9 <-data.frame( gene=rownames(pituitary_9_count_filtered),
+                                    stringsAsFactors=FALSE )
+
+rownames(all_genes_pituitary_9) <- all_genes_pituitary_9$gene
+N_expressed_genes <- length(all_genes_pituitary_9$gene)
+
+gene.length_pituitary_9 <- gene.length[gene.length$ensembl_gene_id %in% all_genes_pituitary_9$gene,]
+
+annotation.genelength.biomart_vector_pituitary_9 <- gene.length_pituitary_9$transcript_length
+names(annotation.genelength.biomart_vector_pituitary_9) <- gene.length_pituitary_9$ensembl_gene_id
+
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes_pituitary_9),]
+
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)]
+
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes_pituitary_9),]
+```
+
+
+```{r}
+test.genes_pituitary_9 <-data.frame(
+  a=unique(cor_pituitary_endometrium_9_[abs(cor_pituitary_endometrium_9_$correlation)>0.9]$gene_pituitary),
+  stringsAsFactors=FALSE)
+
+all_genes_pituitary_9_numeric<-as.integer(all_genes_pituitary_9$gene %in% test.genes_pituitary_9$a)
+names(all_genes_pituitary_9_numeric)<-all_genes_pituitary_9$gene
+
+N_sig_genes<-length(test.genes_pituitary_9$a)
+```
+
+
+
+```{r}
+set.seed(87175)
+
+pwf_pituitary_9 <-nullp(all_genes_pituitary_9_numeric,
+                        bias.data=annotation.genelength.biomart_vector_pituitary_9,
+                        plot.fit=FALSE ) 
+
+GO_BP_Cats_pituitary_corr_endometrium_9 <-goseq(pwf_pituitary_9,
+                                                 gene2cat=annotation.GO.BP.biomart,
+                                                 method ="Sampling",
+                                                 repcnt = 5000,
+                                                 use_genes_without_cat=FALSE)
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_9<-GO_BP_Cats_pituitary_corr_endometrium_9[GO_BP_Cats_pituitary_corr_endometrium_9$numInCat>3,]
+
+GO_BP_Cats_pituitary_corr_endometrium_9$FWER<-p.adjust(
+  GO_BP_Cats_pituitary_corr_endometrium_9$over_represented_pvalue, 
+  method ="holm")
+
+GO_BP_Cats_pituitary_corr_endometrium_9<-GO_BP_Cats_pituitary_corr_endometrium_9[
+  with(GO_BP_Cats_pituitary_corr_endometrium_9,
+       order(FWER,over_represented_pvalue,-numInCat)), ]
+
+```
+
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_9$fold_enrichment<-(GO_BP_Cats_pituitary_corr_endometrium_9$numDEInCat/N_sig_genes)/(GO_BP_Cats_pituitary_corr_endometrium_9$numInCat/N_expressed_genes)
+                                                                                                
+annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% test.genes_pituitary_9$a, ]
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_9<-merge(GO_BP_Cats_pituitary_corr_endometrium_9,
+                                              annotation.GO.BP.biomart_testgenes,
+                                              by.x="category",
+                                              by.y="go_id",
+                                              all.x=TRUE,
+                                              all.y=FALSE)
+
+GO_BP_Cats_pituitary_corr_endometrium_9<-merge(GO_BP_Cats_pituitary_corr_endometrium_9,
+                                              annotation.ensembl.symbol,
+                                              by.x="ensembl_gene_id",
+                                              by.y="ensembl_gene_id",
+                                              all=FALSE, 
+                                              all.x=TRUE,
+                                              all.y=FALSE)
+```
+
+
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_9 <- arrange(GO_BP_Cats_pituitary_corr_endometrium_9, desc(fold_enrichment))
+```
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_9$term<-factor(
+  GO_BP_Cats_pituitary_corr_endometrium_9$term,
+  levels=c(rev(unique(GO_BP_Cats_pituitary_corr_endometrium_9$term))))
+```
+
+
+```{r}
+GO_pituitary_9_plot <- ggplot(data = GO_BP_Cats_pituitary_corr_endometrium_9[1:10, ],
+                             aes(x = fold_enrichment,
+                                y = term)) +
+  geom_point() +
+  coord_cartesian() +
+  scale_colour_gradient(name = "Fold enrichment",
+                        low = "#B8B8B8",
+                        high = "#080808",
+                        na.value = NA) +
+  scale_x_continuous(name = "Fold enrichment") +
+  scale_y_discrete(name = "Biological process") +
+  theme_classic() +
+  ggtitle("pituitary 9 months - Biological processes") +
+  theme(
+    legend.direction = "horizontal",
+    legend.position = c(0.9, 1),
+    legend.key.size = unit(0.5, "mm"),
+    legend.text = element_text(size = 5, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")),
+    legend.title = element_text(size = 5),
+    legend.background = element_blank(),
+    axis.text.x = element_text(color = "black", size = 10),
+    axis.text.y = element_text(color = "black", size = 8),
+    axis.title.y = element_text(vjust = 1, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), size = 10),
+    plot.margin = unit(c(1, 5, 0, 0), units = "mm"),
+    plot.title = element_text(size = 8)
+  ) +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5))
+
+```
+
+
+```{r}
+GO_endometrium_9_plot <- ggplot(data = GO_BP_Cats_endometrium_corr_pituitary_9[1:10, ],
+                             aes(x = fold_enrichment,
+                                y = term)) +
+  geom_point() +
+  coord_cartesian() +
+  scale_colour_gradient(name = "Fold enrichment",
+                        low = "#B8B8B8",
+                        high = "#080808",
+                        na.value = NA) +
+  scale_x_continuous(name = "Fold enrichment") +
+  scale_y_discrete(name = "Biological process") +
+  theme_classic() +
+  ggtitle("endometrium 9 months - Biological processes") +
+  theme(
+    legend.direction = "horizontal",
+    legend.position = c(0.9, 1),
+    legend.key.size = unit(0.5, "mm"),
+    legend.text = element_text(size = 5, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")),
+    legend.title = element_text(size = 5),
+    legend.background = element_blank(),
+    axis.text.x = element_text(color = "black", size = 10),
+    axis.text.y = element_text(color = "black", size = 8),
+    axis.title.y = element_text(vjust = 1, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), size = 10),
+    plot.margin = unit(c(1, 5, 0, 0), units = "mm"),
+    plot.title = element_text(size = 8)
+  ) +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5))
+```
+
+```{r}
+pituitary_endometrium_9_summary_plot<-cowplot::plot_grid(
+  cowplot::plot_grid(cowplot::plot_grid(cor_pituitary_endometrium_9_histogram, gene_connectivity_endometrium_9, gene_connectivity_pituitary_9, nrow =3, ncol=1, rel_heights=c(0.7,1,1),labels = c("A", "C","D"), label_fontface = "plain", label_size = 12 ),cowplot::plot_grid(plot_regr_9 , label_fontface = "plain", label_size = 12 , labels = c("B")) ,ncol=2,rel_widths=c(0.5,1)),
+  cowplot::plot_grid(cowplot::plot_grid(GO_endometrium_9_plot,GO_pituitary_9_plot, nrow =2, align = 'v',labels = c("E", "F"), label_fontface = "plain", label_size = 12), NULL, rel_widths=c(1,0.5)),
+  nrow=2, rel_heights=c(1,0.6))
+```
+
+```{r}
+pituitary_endometrium_9_summary_plot
+```
+
+```{r}
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pituitary_endometrium_9_summary_plot.png",
+       plot = pituitary_endometrium_9_summary_plot, 
+       width = 10, 
+       height = 10)
+```
+
+
+# Test endometrium genes (significantly co-expressed with pituitary) for enrichment of biological processes.
+
+```{r}
+all_genes_endometrium_19 <-data.frame( gene=rownames(endometrium_19_count_filtered),
+                                    stringsAsFactors=FALSE )
+
+rownames(all_genes_endometrium_19)<-all_genes_endometrium_19$gene
+N_expressed_genes<-length(all_genes_endometrium_19$gene)
+
+gene.length_endometrium_19 <-gene.length[gene.length$ensembl_gene_id %in% all_genes_endometrium_19$gene,]
+
+annotation.genelength.biomart_vector_endometrium_19 <-gene.length_endometrium_19$transcript_length
+names(annotation.genelength.biomart_vector_endometrium_19)<-gene.length_endometrium_19$ensembl_gene_id
+
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes_endometrium_19),]
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)]
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes_endometrium_19),]
+
+```
+
+```{r}
+test.genes_endometrium_19 <-data.frame(
+  a=unique(cor_pituitary_endometrium_19_[abs(cor_pituitary_endometrium_19_$correlation)>0.9]$gene_endometrium), 
+  stringsAsFactors=FALSE)
+
+all_genes_endometrium_19_numeric<-as.integer(all_genes_endometrium_19$gene %in% test.genes_endometrium_19$a)
+names(all_genes_endometrium_19_numeric)<-all_genes_endometrium_19$gene
+N_sig_genes<-length(test.genes_endometrium_19$a)
+
+```
+
+```{r}
+set.seed(88972)
+
+pwf_endometrium_19 <- nullp(all_genes_endometrium_19_numeric,
+                            bias.data=annotation.genelength.biomart_vector_endometrium_19,
+                            plot.fit=FALSE )
+```
+
+
+```{r}
+GO_BP_Cats_endometrium_corr_pituitary_19 <- goseq(pwf_endometrium_19,
+                                                  gene2cat=annotation.GO.BP.biomart,
+                                                  method ="Sampling",
+                                                  repcnt = 5000,
+                                                  use_genes_without_cat=FALSE)
+```
+
+```{r}
+write.table(GO_BP_Cats_endometrium_corr_pituitary_19,
+            file = "/home/yassine/Downloads/between_tissue/GO_BP_Cats_endometrium_corr_pituitary_19.txt",
+            quote = TRUE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE) 
+```
+
+```{r}
+
+GO_BP_Cats_endometrium_corr_pituitary_19<-GO_BP_Cats_endometrium_corr_pituitary_19[GO_BP_Cats_endometrium_corr_pituitary_19$numInCat>3,] 
+
+GO_BP_Cats_endometrium_corr_pituitary_19$FWER<-p.adjust(
+  GO_BP_Cats_endometrium_corr_pituitary_19$over_represented_pvalue,
+  method ="holm")
+
+GO_BP_Cats_endometrium_corr_pituitary_19<-GO_BP_Cats_endometrium_corr_pituitary_19[with(GO_BP_Cats_endometrium_corr_pituitary_19,order(FWER,over_represented_pvalue,-numInCat)), ]
+
+GO_BP_Cats_endometrium_corr_pituitary_19$fold_enrichment<-(GO_BP_Cats_endometrium_corr_pituitary_19$numDEInCat/N_sig_genes)/(GO_BP_Cats_endometrium_corr_pituitary_19$numInCat/N_expressed_genes)
+```
+
+
+
+```{r}
+annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% test.genes_endometrium_19$a, ]
+
+GO_BP_Cats_endometrium_corr_pituitary_19<-merge(GO_BP_Cats_endometrium_corr_pituitary_19,
+                                                annotation.GO.BP.biomart_testgenes,
+                                                by.x="category",
+                                                by.y="go_id",
+                                                all.x=FALSE,
+                                                all.y=TRUE)
+
+GO_BP_Cats_endometrium_corr_pituitary_19<-merge(GO_BP_Cats_endometrium_corr_pituitary_19,
+                                                annotation.ensembl.symbol,
+                                                by.x="ensembl_gene_id",
+                                                by.y="ensembl_gene_id", 
+                                                all=FALSE, 
+                                                all.x=TRUE,
+                                                all.y=FALSE)
+```
+
+```{r}
+
+GO_BP_Cats_endometrium_corr_pituitary_19 <- arrange(GO_BP_Cats_endometrium_corr_pituitary_19, desc(fold_enrichment))
+```
+
+
+```{r}
+
+GO_BP_Cats_endometrium_corr_pituitary_19$term<-factor(
+  GO_BP_Cats_endometrium_corr_pituitary_19$term,
+  levels=c(rev(unique(GO_BP_Cats_endometrium_corr_pituitary_19$term))))
+```
+
+
+# Test pituitary genes (significantly co-expressed with endometrium cells) for enrichment of biological processes.
+
+```{r}
+all_genes_pituitary_19 <-data.frame( gene=rownames(pituitary_19_count_filtered),
+                                    stringsAsFactors=FALSE )
+
+rownames(all_genes_pituitary_19) <- all_genes_pituitary_19$gene
+N_expressed_genes <- length(all_genes_pituitary_19$gene)
+
+gene.length_pituitary_19 <- gene.length[gene.length$ensembl_gene_id %in% all_genes_pituitary_19$gene,]
+
+annotation.genelength.biomart_vector_pituitary_19 <- gene.length_pituitary_19$transcript_length
+names(annotation.genelength.biomart_vector_pituitary_19) <- gene.length_pituitary_19$ensembl_gene_id
+
+annotation.GO.BP.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="biological_process", c(1,3)]
+
+annotation.GO.BP.biomart<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% rownames(all_genes_pituitary_19),]
+
+annotation.GO.MF.biomart<-annotation.GO.biomart[annotation.GO.biomart$namespace_1003=="molecular_function", c(1,3)]
+
+annotation.GO.MF.biomart<-annotation.GO.MF.biomart[annotation.GO.MF.biomart$ensembl_gene_id %in% rownames(all_genes_pituitary_19),]
+```
+
+
+```{r}
+test.genes_pituitary_19 <-data.frame(
+  a=unique(cor_pituitary_endometrium_19_[abs(cor_pituitary_endometrium_19_$correlation)>0.9]$gene_pituitary),
+  stringsAsFactors=FALSE)
+
+all_genes_pituitary_19_numeric<-as.integer(all_genes_pituitary_19$gene %in% test.genes_pituitary_19$a)
+names(all_genes_pituitary_19_numeric)<-all_genes_pituitary_19$gene
+
+N_sig_genes<-length(test.genes_pituitary_19$a)
+```
+
+
+
+```{r}
+set.seed(87175)
+
+pwf_pituitary_19 <-nullp(all_genes_pituitary_19_numeric,
+                        bias.data=annotation.genelength.biomart_vector_pituitary_19,
+                        plot.fit=FALSE ) 
+
+GO_BP_Cats_pituitary_corr_endometrium_19 <-goseq(pwf_pituitary_19,
+                                                 gene2cat=annotation.GO.BP.biomart,
+                                                 method ="Sampling",
+                                                 repcnt = 5000,
+                                                 use_genes_without_cat=FALSE)
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_19<-GO_BP_Cats_pituitary_corr_endometrium_19[GO_BP_Cats_pituitary_corr_endometrium_19$numInCat>3,]
+
+GO_BP_Cats_pituitary_corr_endometrium_19$FWER<-p.adjust(
+  GO_BP_Cats_pituitary_corr_endometrium_19$over_represented_pvalue, 
+  method ="holm")
+
+GO_BP_Cats_pituitary_corr_endometrium_19<-GO_BP_Cats_pituitary_corr_endometrium_19[
+  with(GO_BP_Cats_pituitary_corr_endometrium_19,
+       order(FWER,over_represented_pvalue,-numInCat)), ]
+
+```
+
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_19$fold_enrichment<-(GO_BP_Cats_pituitary_corr_endometrium_19$numDEInCat/N_sig_genes)/(GO_BP_Cats_pituitary_corr_endometrium_19$numInCat/N_expressed_genes)
+                                                                                                
+annotation.GO.BP.biomart_testgenes<-annotation.GO.BP.biomart[annotation.GO.BP.biomart$ensembl_gene_id %in% test.genes_pituitary_19$a, ]
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_19<-merge(GO_BP_Cats_pituitary_corr_endometrium_19,
+                                              annotation.GO.BP.biomart_testgenes,
+                                              by.x="category",
+                                              by.y="go_id",
+                                              all.x=TRUE,
+                                              all.y=FALSE)
+
+GO_BP_Cats_pituitary_corr_endometrium_19<-merge(GO_BP_Cats_pituitary_corr_endometrium_19,
+                                              annotation.ensembl.symbol,
+                                              by.x="ensembl_gene_id",
+                                              by.y="ensembl_gene_id",
+                                              all=FALSE, 
+                                              all.x=TRUE,
+                                              all.y=FALSE)
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_19 <- arrange(GO_BP_Cats_pituitary_corr_endometrium_19, desc(fold_enrichment))
+```
+
+
+```{r}
+GO_BP_Cats_pituitary_corr_endometrium_19$term<-factor(
+  GO_BP_Cats_pituitary_corr_endometrium_19$term,
+  levels=c(rev(unique(GO_BP_Cats_pituitary_corr_endometrium_19$term))))
+
+```
+
+
+```{r}
+GO_pituitary_19_plot <- ggplot(data = GO_BP_Cats_pituitary_corr_endometrium_19[1:10, ],
+                             aes(x = fold_enrichment,
+                                y = term)) +
+  geom_point() +
+  coord_cartesian() +
+  scale_colour_gradient(name = "Fold enrichment",
+                        low = "#B8B8B8",
+                        high = "#080808",
+                        na.value = NA) +
+  scale_x_continuous(name = "Fold enrichment") +
+  scale_y_discrete(name = "Biological process") +
+  theme_classic() +
+  ggtitle("pituitary 19 months - Biological processes") +
+  theme(
+    legend.direction = "horizontal",
+    legend.position = c(0.9, 1),
+    legend.key.size = unit(0.5, "mm"),
+    legend.text = element_text(size = 5, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")),
+    legend.title = element_text(size = 5),
+    legend.background = element_blank(),
+    axis.text.x = element_text(color = "black", size = 10),
+    axis.text.y = element_text(color = "black", size = 8),
+    axis.title.y = element_text(vjust = 1, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), size = 10),
+    plot.margin = unit(c(1, 5, 0, 0), units = "mm"),
+    plot.title = element_text(size = 8)
+  ) +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5))
+
+```
+
+
+```{r}
+GO_endometrium_19_plot <- ggplot(data = GO_BP_Cats_endometrium_corr_pituitary_19[1:10, ],
+                             aes(x = fold_enrichment,
+                                y = term)) +
+  geom_point() +
+  coord_cartesian() +
+  scale_colour_gradient(name = "Fold enrichment",
+                        low = "#B8B8B8",
+                        high = "#080808",
+                        na.value = NA) +
+  scale_x_continuous(name = "Fold enrichment") +
+  scale_y_discrete(name = "Biological process") +
+  theme_classic() +
+  ggtitle("endometrium 19 months - Biological processes") +
+  theme(
+    legend.direction = "horizontal",
+    legend.position = c(0.9, 1),
+    legend.key.size = unit(0.5, "mm"),
+    legend.text = element_text(size = 5, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")),
+    legend.title = element_text(size = 5),
+    legend.background = element_blank(),
+    axis.text.x = element_text(color = "black", size = 10),
+    axis.text.y = element_text(color = "black", size = 8),
+    axis.title.y = element_text(vjust = 1, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), size = 10),
+    plot.margin = unit(c(1, 5, 0, 0), units = "mm"),
+    plot.title = element_text(size = 8)
+  ) +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5))
+```
+
+```{r}
+pituitary_endometrium_19_summary_plot<-cowplot::plot_grid(
+  cowplot::plot_grid(cowplot::plot_grid(cor_pituitary_endometrium_19_histogram, gene_connectivity_endometrium_19, gene_connectivity_pituitary_19, nrow =3, ncol=1, rel_heights=c(0.7,1,1),labels = c("A", "C","D"), label_fontface = "plain", label_size = 12 ),cowplot::plot_grid(plot_regr_19 , label_fontface = "plain", label_size = 12 , labels = c("B")) ,ncol=2,rel_widths=c(0.5,1)),
+  cowplot::plot_grid(cowplot::plot_grid(GO_endometrium_19_plot,GO_pituitary_19_plot, nrow =2, align = 'v',labels = c("E", "F"), label_fontface = "plain", label_size = 12), NULL, rel_widths=c(1,0.5)),
+  nrow=2, rel_heights=c(1,0.6))
+```
+
+
+```{r}
+pituitary_endometrium_19_summary_plot
+```
+
+```{r}
+ggsave(filename="/home/yassine/Downloads/between_tissue/Figures/pituitary_endometrium_19_summary_plot.png",
+       plot = pituitary_endometrium_19_summary_plot, 
+       width = 10, 
+       height = 10)
+```
+
